@@ -1,0 +1,6 @@
+{
+  "name": "CycleOn POS",
+  "description": "A robust, multi-tenant POS application for laundry businesses featuring sequential cycle tracking, barcodes, financial ledgers, and discrepancy alerts.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

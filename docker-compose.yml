@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  washhub-pos:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: washhub-pos:latest
+    container_name: washhub-pos-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    restart: unless-stopped
