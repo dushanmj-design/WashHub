@@ -248,6 +248,7 @@ export default function App() {
         isSupervisor: true,
         supervisor_data: resData.order.supervisor_data || payload
       });
+      setActiveTab("operations");
       
       setSuccessMessage('Manual Order Settled & Invoiced!');
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -391,6 +392,7 @@ const handleOrderIntake = async (orderData: {
             received_cash: receivedCash,
             shopName: activeTenant?.name || 'Wash Bay'
           });
+      setActiveTab("operations");
         }
       }
     } catch (err: any) {
@@ -510,7 +512,7 @@ const handleOrderIntake = async (orderData: {
         {/* Global Success Popup */}
         {successMessage && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in pointer-events-none">
-            <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl pointer-events-auto transform transition-all p-6 text-center border-2 border-emerald-500 shadow-emerald-500/20 flex flex-col items-center">
+            <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl pointer-events-auto transform transition-all p-6 text-center border-2 border-emerald-500 shadow-emerald-500/20 flex flex-col items-center">
               <div className="h-16 w-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
                 <CheckCircle2 className="h-8 w-8" />
               </div>
@@ -529,19 +531,6 @@ const handleOrderIntake = async (orderData: {
             isLoading={isActionLoading}
             onClose={() => setShowSuperAdmin(false)}
           />
-        )}
-
-        {/* Final Bill Modal */}
-        {finalBillPayload && activeTab !== "operations" && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in">
-            <div className="relative w-full max-w-sm max-h-[90vh] overflow-y-auto custom-scrollbar">
-              {finalBillPayload.isSupervisor ? (
-                <SupervisorReceipt payload={finalBillPayload} onClose={() => setFinalBillPayload(null)} />
-              ) : (
-                <FinalBillView payload={finalBillPayload} onClose={() => setFinalBillPayload(null)} />
-              )}
-            </div>
-          </div>
         )}
 
         {/* Workspace Navigation Tabs */}
