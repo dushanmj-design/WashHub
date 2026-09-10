@@ -5,10 +5,21 @@ interface SupervisorIntakeProps {
   isLoading: boolean;
   activeTenantId?: string;
   activeRole?: string;
+  orders?: any[];
 }
 
-export default function SupervisorIntake({ onSubmit, isLoading }: SupervisorIntakeProps) {
+export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: SupervisorIntakeProps) {
   const [mobile, setMobile] = useState('');
+  const handleMobileChange = (val: string) => {
+    setMobile(val);
+    if (orders && val.length >= 9) {
+      const existing = orders.find(o => o.customer_mobile === val || (o.supervisor_data && o.supervisor_data.order_details && o.supervisor_data.order_details.customer && o.supervisor_data.order_details.customer.telephone === val));
+      if (existing) {
+        const foundName = existing.customer_name || (existing.supervisor_data && existing.supervisor_data.order_details && existing.supervisor_data.order_details.customer.name);
+        if (foundName) setName(foundName);
+      }
+    }
+  };
   const [name, setName] = useState('');
   
   const [currentDate, setCurrentDate] = useState('');
@@ -17,7 +28,11 @@ export default function SupervisorIntake({ onSubmit, isLoading }: SupervisorInta
   const [deliveryDate, setDeliveryDate] = useState('');
   
   const [services, setServices] = useState({ wash: true, dry: true, iron: true, dc: true });
-  const [category, setCategory] = useState('Cloths');
+  const [category, setCategory] = useState<string[]>(['Cloths']);
+
+  const toggleCategory = (cat: string) => {
+    setCategory(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]);
+  };
   
   const [weight, setWeight] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -85,9 +100,9 @@ export default function SupervisorIntake({ onSubmit, isLoading }: SupervisorInta
       <div className="flex-1 flex flex-col border-r border-slate-200">
         
         {/* Header */}
-        <header className="bg-[#2563eb] text-white p-6 sm:p-8">
+        <header className="bg-slate-900 text-slate-100 p-6 sm:p-8">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-wide">Wash hub (Pvt) LTD.</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-wide text-white">Wash hub (Pvt) LTD.</h1>
             <div className="text-xs sm:text-sm font-semibold opacity-90 text-right">
               <div>TEL: 011-1234567</div>
             </div>
@@ -96,25 +111,25 @@ export default function SupervisorIntake({ onSubmit, isLoading }: SupervisorInta
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-blue-100 mb-1.5">Name</label>
-                <input required value={name} onChange={e => setName(e.target.value)} className="w-full rounded-md border-0 py-2.5 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-transparent focus:ring-2 focus:ring-inset focus:ring-white sm:text-sm font-medium" placeholder="Customer Name" type="text" />
+                <label className="block text-sm font-bold text-slate-300 mb-1.5">Telephone</label>
+                <input required value={mobile} onChange={e => handleMobileChange(e.target.value)} className="w-full rounded-md border border-slate-600 bg-slate-800 py-2.5 px-3 text-white shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm font-medium placeholder-slate-500" placeholder="Phone Number" type="tel" />
               </div>
               <div>
-                <label className="block text-sm font-bold text-blue-100 mb-1.5">Telephone</label>
-                <input required value={mobile} onChange={e => setMobile(e.target.value)} className="w-full rounded-md border-0 py-2.5 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-transparent focus:ring-2 focus:ring-inset focus:ring-white sm:text-sm font-medium" placeholder="Phone Number" type="tel" />
+                <label className="block text-sm font-bold text-slate-300 mb-1.5">Name</label>
+                <input required value={name} onChange={e => setName(e.target.value)} className="w-full rounded-md border border-slate-600 bg-slate-800 py-2.5 px-3 text-white shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-sm font-medium placeholder-slate-500" placeholder="Customer Name" type="text" />
               </div>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-blue-100 mb-1.5">Date</label>
-                <div className="w-full bg-[#1d4ed8] rounded-md py-2.5 px-3 text-white sm:text-sm border border-transparent flex items-center shadow-inner font-medium">
-                  <span>{currentDate}</span> <span className="ml-2 text-xs opacity-70">(Auto)</span>
+                <label className="block text-sm font-bold text-slate-300 mb-1.5">Date</label>
+                <div className="w-full bg-slate-800 border border-slate-600 rounded-md py-2.5 px-3 text-slate-200 sm:text-sm flex items-center shadow-inner font-medium">
+                  <span>{currentDate}</span> <span className="ml-2 text-xs text-slate-500">(Auto)</span>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-bold text-blue-100 mb-1.5">Time</label>
-                <div className="w-full bg-[#1d4ed8] rounded-md py-2.5 px-3 text-white sm:text-sm border border-transparent flex items-center shadow-inner font-medium">
-                  <span>{currentTime}</span> <span className="ml-2 text-xs opacity-70">(Auto)</span>
+                <label className="block text-sm font-bold text-slate-300 mb-1.5">Time</label>
+                <div className="w-full bg-slate-800 border border-slate-600 rounded-md py-2.5 px-3 text-slate-200 sm:text-sm flex items-center shadow-inner font-medium">
+                  <span>{currentTime}</span> <span className="ml-2 text-xs text-slate-500">(Auto)</span>
                 </div>
               </div>
             </div>
@@ -137,10 +152,10 @@ export default function SupervisorIntake({ onSubmit, isLoading }: SupervisorInta
           <section>
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Item Category</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <button type="button" onClick={() => setCategory('Cloths')} className={`py-3 rounded border font-semibold transition-all ${category === 'Cloths' ? 'bg-[#fef08a] border-[#fde047] text-[#92400e] shadow-sm ring-2 ring-yellow-400 ring-offset-1' : 'bg-[#fef9c3] border-[#fef08a] text-[#a16207]'}`}>Cloths</button>
-              <button type="button" onClick={() => setCategory('Curtain')} className={`py-3 rounded border font-semibold transition-all ${category === 'Curtain' ? 'bg-[#f1f5f9] border-[#cbd5e1] text-[#334155] shadow-sm ring-2 ring-slate-300 ring-offset-1' : 'bg-[#f8fafc] border-[#e2e8f0] text-[#475569]'}`}>Curtain</button>
-              <button type="button" onClick={() => setCategory('Bed Sheets')} className={`py-3 rounded border font-semibold transition-all ${category === 'Bed Sheets' ? 'bg-[#fde047] border-[#eab308] text-[#92400e] shadow-sm ring-2 ring-yellow-400 ring-offset-1' : 'bg-[#fef08a] border-[#fde047] text-[#a16207]'}`}>Bed Sheets</button>
-              <button type="button" onClick={() => setCategory('Others')} className={`py-3 rounded border font-semibold transition-all ${category === 'Others' ? 'bg-[#334155] border-[#1e293b] text-white shadow-sm ring-2 ring-slate-800 ring-offset-1' : 'bg-[#475569] border-[#334155] text-slate-200'}`}>Others</button>
+              <button type="button" onClick={() => toggleCategory('Cloths')} className={`py-3 rounded border font-semibold transition-all ${category.includes('Cloths') ? 'bg-blue-600 border-blue-700 text-white shadow-md ring-2 ring-blue-500 ring-offset-2' : 'bg-blue-100 border-blue-300 text-blue-800 hover:bg-blue-200'}`}>Cloths</button>
+              <button type="button" onClick={() => toggleCategory('Curtain')} className={`py-3 rounded border font-semibold transition-all ${category.includes('Curtain') ? 'bg-teal-600 border-teal-700 text-white shadow-md ring-2 ring-teal-500 ring-offset-2' : 'bg-teal-100 border-teal-300 text-teal-800 hover:bg-teal-200'}`}>Curtain</button>
+              <button type="button" onClick={() => toggleCategory('Bed Sheets')} className={`py-3 rounded border font-semibold transition-all ${category.includes('Bed Sheets') ? 'bg-purple-600 border-purple-700 text-white shadow-md ring-2 ring-purple-500 ring-offset-2' : 'bg-purple-100 border-purple-300 text-purple-800 hover:bg-purple-200'}`}>Bed Sheets</button>
+              <button type="button" onClick={() => toggleCategory('Others')} className={`py-3 rounded border font-semibold transition-all ${category.includes('Others') ? 'bg-slate-700 border-slate-800 text-white shadow-md ring-2 ring-slate-500 ring-offset-2' : 'bg-slate-200 border-slate-300 text-slate-800 hover:bg-slate-300'}`}>Others</button>
             </div>
           </section>
 

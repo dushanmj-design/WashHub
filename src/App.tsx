@@ -11,12 +11,13 @@ import {
   RefreshCw,
   Building2,
   AlertTriangle,
-  WifiOff, CheckCircle2
+  WifiOff, CheckCircle2, FileText
 } from 'lucide-react';
 
 import { Tenant, UserRole, Order, CashLedger, SimulatedNotification } from './types';
 import Header from './components/Header';
 import AdminDashboard from './components/AdminDashboard';
+import AdminReports from './components/AdminReports';
 import OrderIntake from './components/OrderIntake';
 import SupervisorIntake from './components/SupervisorIntake';
 import BarcodeScanner from './components/BarcodeScanner';
@@ -44,7 +45,7 @@ export default function App() {
   const [dashboardStats, setDashboardStats] = useState<any>(null);
   
   // Auxiliary UI Toggles
-  const [activeTab, setActiveTab] = useState<'operations' | 'scan' | 'billing' | 'ledger' | 'dashboard'>('operations');
+  const [activeTab, setActiveTab] = useState<'operations' | 'scan' | 'billing' | 'ledger' | 'dashboard' | 'reports'>('operations');
   const [stickerPayload, setStickerPayload] = useState<any>(null);
   const [finalBillPayload, setFinalBillPayload] = useState<any>(null);
   const [showSuperAdmin, setShowSuperAdmin] = useState(false);
@@ -390,7 +391,7 @@ const handleOrderIntake = async (orderData: {
             est_amount: o.estimated_amount,
             final_amount: finalAmount,
             received_cash: receivedCash,
-            shopName: activeTenant?.name || 'Wash Bay'
+            shopName: activeTenant?.name || 'Wash Hub'
           });
       setActiveTab("operations");
         }
@@ -589,6 +590,20 @@ const handleOrderIntake = async (orderData: {
 
           {(activeRole === 'admin' || activeRole === 'super_admin') && (
             <button
+              onClick={() => setActiveTab('reports')}
+              className={`py-2.5 px-4 text-sm font-medium border-b-2 transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+                activeTab === 'reports'
+                  ? 'border-cyan-600 text-cyan-700 font-bold'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <FileText className="h-4 w-4" />
+              <span>Reports</span>
+            </button>
+          )}
+
+          {(activeRole === 'admin' || activeRole === 'super_admin') && (
+            <button
               onClick={() => setActiveTab('dashboard')}
               className={`py-2.5 px-4 text-sm font-medium border-b-2 transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
                 activeTab === 'dashboard'
@@ -601,37 +616,32 @@ const handleOrderIntake = async (orderData: {
               <span>Admin Console</span>
             </button>
           )}
-
         </div>
 
-        {/* Tab Views routers */}
-        <div className="grid grid-cols-1 gap-6">
-          
-          {/* 1. OPERATIONS TAB */}
-          {activeTab === 'operations' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in" id="operations-view">
-              {/* Order Intake Form */}
-              <div className="lg:col-span-2">
-                
-                {activeRole === 'supervisor' ? (
-                  <SupervisorIntake 
-                    onSubmit={handleSupervisorIntake}
-                    isLoading={isActionLoading}
-                    activeTenantId={activeTenant?.id}
-                    activeRole={activeRole}
-                  />
-                ) : (
-                  <OrderIntake 
-                    onSubmit={handleOrderIntake} 
-                    isLoading={isActionLoading} 
-                    activeTenantId={activeTenant?.id}
-                    activeRole={activeRole}
-                  />
-                )}
+        {/* 1. OPERATIONS TAB */}
+        {activeTab === 'operations' && (
+          <div className="flex flex-col lg:flex-row gap-6 p-4 animate-fade-in" id="ops-view">
+            {/* Left Column - Form */}
+            <div className="flex-1">
+              {activeRole === 'supervisor' ? (
+                <SupervisorIntake 
+                  onSubmit={handleSupervisorIntake}
+                  isLoading={isActionLoading}
+                  activeTenantId={activeTenant?.id}
+                  activeRole={activeRole}
+                  orders={orders}
+                />
+              ) : (
+                <OrderIntake 
+                  onSubmit={handleOrderIntake} 
+                  isLoading={isActionLoading} 
+                  activeTenantId={activeTenant?.id} 
+                />
+              )}
+            </div>
 
-              </div>
-
-              {/* Spool / Print Sticker Preview & Barcode Scanner OR Final Bill */}
+            {/* Right Column - Auto Sticker / Receipt Panel */}
+            <div className="w-full lg:w-80 shrink-0">
               <div className="flex flex-col h-[calc(100vh-12rem)] sticky top-6">
                 {finalBillPayload ? (
                   <div className="bg-slate-100 rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-1 relative">
@@ -648,23 +658,32 @@ const handleOrderIntake = async (orderData: {
                 )}
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* 1.5 SCAN TAB */}
-          {activeTab === 'scan' && (
-            <div className="animate-fade-in" id="scan-view">
-              <BarcodeScanner orders={orders} onScanBarcode={handleScanBarcode} isLoading={isActionLoading} />
-            </div>
-          )}
+        {/* 2. SCAN TAB */}
+        {activeTab === 'scan' && (
+          <div className="animate-fade-in p-4" id="scan-view">
+            <BarcodeScanner onScan={handleScanBarcode} isLoading={isActionLoading} orders={orders} />
+          </div>
+        )}
 
-          {/* 2. BILLING TAB */}
-          {activeTab === 'billing' && (
-            <div className="animate-fade-in" id="billing-view">
-              <BillingCheckout 
-                orders={orders} 
-                onCloseOrder={handleCloseOrder} 
-                isLoading={isActionLoading} 
-              />
+        {/* BILLING DESK */}
+        {activeTab === 'billing' && (
+          <div className="animate-fade-in p-4" id="billing-view">
+            <BillingCheckout 
+              orders={orders} 
+              onCloseOrder={handleCloseOrder} 
+              isLoading={isActionLoading} 
+            />
+          </div>
+        )}
+
+          
+          {/* REPORTS TAB */}
+          {activeTab === 'reports' && (
+            <div className="animate-fade-in" id="reports-view">
+              <AdminReports orders={orders} />
             </div>
           )}
 
@@ -691,9 +710,7 @@ const handleOrderIntake = async (orderData: {
             </div>
           )}
 
-        </div>
-
-      </main>
+        </main>
 
       {/* Slide-out SMS simulated logger notifications drawer */}
       <NotificationLog
@@ -704,7 +721,7 @@ const handleOrderIntake = async (orderData: {
 
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 py-6 border-t border-slate-800 text-xs text-center font-mono">
-        <p>© 2026 Wash Bay Laundry POS. High-Isolation Multi-Tenant Client Architecture.</p>
+        <p>© 2026 Wash Hub Laundry POS. High-Isolation Multi-Tenant Client Architecture.</p>
         <p className="mt-1 text-[10px] text-slate-500">Row-Level Database Guard activated. Postgres schema compliant.</p>
       </footer>
 
