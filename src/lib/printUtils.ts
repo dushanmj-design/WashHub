@@ -41,12 +41,9 @@ export function printHtml(htmlContent: string, title: string) {
           }
           .receipt-page {
              width: 100%;
-             max-width: 80mm;
-             margin: 0 auto;
-             padding: 10px 0;
+             padding: 0;
+             margin: 0;
              page-break-after: always;
-             display: flex;
-             justify-content: center;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }

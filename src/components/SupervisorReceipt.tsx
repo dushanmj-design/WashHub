@@ -27,7 +27,7 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
   const billNumber = payload.barcode ? payload.barcode.replace('WB-', '') : '1025';
 
   const renderReceipt = (isVendorCopy: boolean) => (
-    <div className="bg-white text-black font-serif relative pb-2 mx-auto" style={{ width: '300px', fontFamily: '"Times New Roman", Times, serif' }}>
+    <div className="bg-white text-black font-serif relative pb-2 mx-auto w-full" style={{ fontFamily: '"Times New Roman", Times, serif' }}>
       {/* Header */}
       <div className="text-center text-white bg-zinc-800 pb-1 pt-2 px-2" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/black-paper.png")', backgroundSize: 'cover' }}>
         <h1 className="text-4xl font-bold tracking-tight mb-1" style={{ fontFamily: '"Arial Black", Arial, sans-serif' }}>Wash Hub</h1>
@@ -167,16 +167,16 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
         {/* Receipt Container */}
         
         {/* Visible Preview (Customer Copy) */}
-        <div className="scale-90 md:scale-100 origin-top flex justify-center pb-8 shadow-2xl">
+        <div className="scale-90 md:scale-100 origin-top flex justify-center pb-8 shadow-2xl w-[300px]">
            {renderReceipt(false)}
         </div>
 
         {/* Hidden Container for Actual Printing (1x Customer, 1x Vendor) */}
         <div id="supervisor-receipt-print" className="hidden">
-           <div className="receipt-page" style={{ width: '100%', display: 'flex', justifyContent: 'center', pageBreakAfter: 'always' }}>
+           <div className="receipt-page" style={{ width: '100%', pageBreakAfter: 'always' }}>
              {renderReceipt(false)}
            </div>
-           <div className="receipt-page" style={{ width: '100%', display: 'flex', justifyContent: 'center', pageBreakAfter: 'always' }}>
+           <div className="receipt-page" style={{ width: '100%', pageBreakAfter: 'always' }}>
              {renderReceipt(true)}
            </div>
         </div>
