@@ -173,9 +173,12 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
 
         {/* Hidden Container for Actual Printing (1x Customer, 1x Vendor) */}
         <div id="supervisor-receipt-print" className="hidden">
-           {renderReceipt(false)}
-           <div style={{ pageBreakAfter: 'always', margin: '20px 0' }}></div>
-           {renderReceipt(true)}
+           <div className="receipt-page" style={{ width: '100%', display: 'flex', justifyContent: 'center', pageBreakAfter: 'always' }}>
+             {renderReceipt(false)}
+           </div>
+           <div className="receipt-page" style={{ width: '100%', display: 'flex', justifyContent: 'center', pageBreakAfter: 'always' }}>
+             {renderReceipt(true)}
+           </div>
         </div>
       </div>
       </div>
