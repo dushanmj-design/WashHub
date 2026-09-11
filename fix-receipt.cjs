@@ -1,29 +1,14 @@
-import React from 'react';
-import { Printer, Check } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
-import { printHtml } from '../lib/printUtils';
+const fs = require('fs');
+let content = fs.readFileSync('src/components/SupervisorReceipt.tsx', 'utf8');
 
-interface SupervisorReceiptProps {
-  payload: any;
-  onClose: () => void;
-  inline?: boolean;
-}
+// Add QRCodeSVG import
+content = content.replace(
+  "import { Printer, Check } from 'lucide-react';",
+  "import { Printer, Check } from 'lucide-react';\nimport { QRCodeSVG } from 'qrcode.react';"
+);
 
-export default function SupervisorReceipt({ payload, onClose, inline }: SupervisorReceiptProps) {
-  if (!payload || !payload.supervisor_data) return null;
-  
-  const rawData = payload.supervisor_data;
-  const orderDetails = rawData.order_details || rawData;
-  
-  const handlePrint = () => {
-    const el = document.getElementById('supervisor-receipt-print');
-    if (el) {
-      // Use standard printHtml which adds basic styles. The element itself contains the page breaks.
-      printHtml(el.innerHTML, 'Supervisor Receipt');
-    }
-  };
-
-  
+// We'll define a Receipt template function inside the component to render the receipt HTML.
+const templateFunc = `
   const billNumber = payload.barcode ? payload.barcode.replace('WB-', '') : '1025';
 
   const renderReceipt = (isVendorCopy: boolean) => (
@@ -70,7 +55,7 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
               <span>Qty:</span><span>{orderDetails.specs.quantity || 0}</span>
             </div>
             <div className="flex justify-between border-b border-black/30 pb-0.5 mt-1">
-              <span>Wgt:</span><span>{orderDetails.specs.weight_kg ? `${orderDetails.specs.weight_kg}kg` : '-'}</span>
+              <span>Wgt:</span><span>{orderDetails.specs.weight_kg ? \`\${orderDetails.specs.weight_kg}kg\` : '-'}</span>
             </div>
             <div className="flex justify-between pb-0.5 mt-1">
               <span>Del:</span><span className="text-xs">{orderDetails.order_metadata.delivery_date}</span>
@@ -149,51 +134,43 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
       </div>
     </div>
   );
+`;
 
+const existingBlock = /const billNumber = payload\.barcode \? payload\.barcode\.replace\('WB-', ''\) : '1025';\s*return \(\s*<div className=\{`bg-white/m;
+
+// We will inject our new logic and the hidden wrapper.
+content = content.replace(existingBlock, templateFunc + `
   return (
-    <div className={`bg-white 
- w-full flex flex-col overflow-hidden mx-auto ${inline ? "h-full rounded-none shadow-none" : "rounded-xl shadow-xl max-h-[90vh] max-w-lg"}`}>
-      <div className="p-4 bg-slate-900 text-white flex justify-between items-center shrink-0">
-        <h3 className="font-bold">Generated Receipt</h3>
-        <button onClick={onClose} className="p-1 hover:bg-slate-700 rounded transition-colors text-slate-300">
-          <Check className="h-5 w-5" />
-        </button>
-      </div>
-      
-      {/* Hide scrollbar by using overflow-hidden or setting exact fits */}
-      <div className={`p-4 bg-gray-200 flex justify-center h-full ${inline ? "items-start overflow-auto" : "items-center overflow-auto min-h-[500px]"}`}>
-        {/* Scale Wrapper for Preview */}
-        <div className={`transform origin-top transition-transform ${inline ? "scale-[0.65] sm:scale-[0.75] md:scale-[0.85] lg:scale-100" : "scale-[0.75] md:scale-90 lg:scale-100 origin-top"} mx-auto flex justify-center`}>
-        {/* Receipt Container */}
-        
+    <div className={\`bg-white w-full flex flex-col overflow-hidden mx-auto \${inline ? "h-full rounded-none shadow-none" : "rounded-xl shadow-xl max-h-[90vh] max-w-lg"}\`}>
+`);
+
+// Now replace handlePrint
+content = content.replace(
+  "const el = document.getElementById('supervisor-receipt-print');\n    if (el) {\n      printHtml(el.innerHTML, 'Supervisor Receipt');\n    }",
+  "const el = document.getElementById('supervisor-receipt-print');\n    if (el) {\n      // Use standard printHtml which adds basic styles. The element itself contains the page breaks.\n      printHtml(el.innerHTML, 'Supervisor Receipt');\n    }"
+);
+
+// We need to replace the entire preview area with our new receipt template.
+// Find the <div id="supervisor-receipt-print" ...> block to the end of the file.
+// We'll replace it.
+
+const regex = /<div id="supervisor-receipt-print"[\s\S]*<\/div>\s*<\/div>\s*<\/div>\s*<div className="p-4 bg-slate-50/;
+
+content = content.replace(regex, `
         {/* Visible Preview (Customer Copy) */}
         <div className="scale-90 md:scale-100 origin-top flex justify-center pb-8 shadow-2xl">
            {renderReceipt(false)}
         </div>
 
-        {/* Hidden Container for Actual Printing (1x Customer, 1x Vendor) */}
+        {/* Hidden Container for Actual Printing (1x Customer, 2x Vendor) */}
         <div id="supervisor-receipt-print" className="hidden">
            {renderReceipt(false)}
            <div style={{ pageBreakAfter: 'always', margin: '20px 0' }}></div>
            {renderReceipt(true)}
+           <div style={{ pageBreakAfter: 'always', margin: '20px 0' }}></div>
+           {renderReceipt(true)}
         </div>
       </div>
-      </div>
-      <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3 shrink-0">
-        <button
-          onClick={onClose}
-          className="px-5 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50"
-        >
-          Close
-        </button>
-        <button
-          onClick={handlePrint}
-          className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-500"
-        >
-          <Printer className="h-4 w-4" />
-          Print Receipt
-        </button>
-      </div>
-    </div>
-  );
-}
+      <div className="p-4 bg-slate-50/`);
+
+fs.writeFileSync('src/components/SupervisorReceipt.tsx', content);

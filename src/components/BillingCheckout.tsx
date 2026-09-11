@@ -6,17 +6,32 @@ import { PaginatedList } from './PaginatedList';
 interface BillingCheckoutProps {
   orders: Order[];
   onCloseOrder: (orderId: string, finalAmount: number, receivedCash: number) => void;
+  onScanReady?: (barcode: string) => Promise<void>;
   isLoading: boolean;
 }
 
 type SettleFieldName = 'finalAmount' | 'receivedCash';
 
-export default function BillingCheckout({ orders, onCloseOrder, isLoading }: BillingCheckoutProps) {
+export default function BillingCheckout({ orders, onCloseOrder, onScanReady, isLoading }: BillingCheckoutProps) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [finalAmount, setFinalAmount] = useState('');
   const [receivedCash, setReceivedCash] = useState('');
   const [activeField, setActiveField] = useState<SettleFieldName>('finalAmount');
   const [error, setError] = useState('');
+
+  const [scanInput, setScanInput] = useState('');
+
+  const handleScanSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!scanInput.trim() || !onScanReady) return;
+    try {
+      await onScanReady(scanInput.trim());
+      setScanInput('');
+    } catch (err) {
+      // API error handled upstream
+    }
+  };
+
 
   // Only completed orders can be checked out
   const readyOrders = orders.filter((o) => o.status === 'completed');
@@ -109,7 +124,24 @@ export default function BillingCheckout({ orders, onCloseOrder, isLoading }: Bil
         </div>
       </div>
 
+      
+      {onScanReady && (
+          <form onSubmit={handleScanSubmit} className="mb-6 p-4 rounded-xl border border-blue-200 bg-blue-50/50 flex gap-3 shadow-sm">
+            <input 
+              type="text" 
+              autoFocus 
+              value={scanInput} 
+              onChange={e => setScanInput(e.target.value)} 
+              placeholder="Scan Vendor QR (Barcode) here to mark as Ready for Pickup..." 
+              className="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm shadow-sm" 
+            />
+            <button type="submit" disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-lg transition shadow">
+              Mark Ready & SMS
+            </button>
+          </form>
+      )}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+
         
         {/* Left Side: Orders Picker Rack & Invoice Parameters */}
         <div className="xl:col-span-7 space-y-5">

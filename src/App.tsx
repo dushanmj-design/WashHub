@@ -547,8 +547,9 @@ const handleOrderIntake = async (orderData: {
             id="tab-ops"
           >
             <PlusCircle className="h-4 w-4" />
-            <span>Cycle Operations</span>
+            <span>{activeRole === 'supervisor' ? 'New Order' : 'Cycle Operations'}</span>
           </button>
+          {(activeRole !== 'supervisor') && (
           <button
             onClick={() => setActiveTab('scan')}
             className={`py-2.5 px-4 text-sm font-medium border-b-2 transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
@@ -561,6 +562,7 @@ const handleOrderIntake = async (orderData: {
             <QrCode className="h-4 w-4" />
             <span>Scan Workflow</span>
           </button>
+        )}
 
           <button
             onClick={() => setActiveTab('billing')}
@@ -572,9 +574,10 @@ const handleOrderIntake = async (orderData: {
             id="tab-billing"
           >
             <Receipt className="h-4 w-4" />
-            <span>Billing Desk</span>
+            <span>{activeRole === 'supervisor' ? 'Order Summary & Checkout' : 'Billing Desk'}</span>
           </button>
 
+          {(activeRole !== 'supervisor') && (
           <button
             onClick={() => setActiveTab('ledger')}
             className={`py-2.5 px-4 text-sm font-medium border-b-2 transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
@@ -587,6 +590,7 @@ const handleOrderIntake = async (orderData: {
             <Coins className="h-4 w-4" />
             <span>Cash Drawer Book</span>
           </button>
+        )}
 
           {(activeRole === 'admin' || activeRole === 'super_admin') && (
             <button
@@ -664,7 +668,7 @@ const handleOrderIntake = async (orderData: {
         {/* 2. SCAN TAB */}
         {activeTab === 'scan' && (
           <div className="animate-fade-in p-4" id="scan-view">
-            <BarcodeScanner onScan={handleScanBarcode} isLoading={isActionLoading} orders={orders} />
+            <BarcodeScanner onScanBarcode={handleScanBarcode} isLoading={isActionLoading} orders={orders} />
           </div>
         )}
 
@@ -674,6 +678,7 @@ const handleOrderIntake = async (orderData: {
             <BillingCheckout 
               orders={orders} 
               onCloseOrder={handleCloseOrder} 
+              onScanReady={handleScanBarcode}
               isLoading={isActionLoading} 
             />
           </div>
