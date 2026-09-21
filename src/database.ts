@@ -201,8 +201,12 @@ public async updateOrderStatus(tenantId: string, barcodeId: string, role?: strin
       
       const phone = order.customer_mobile || ((order as any).supervisor_data?.order_details?.customer?.telephone) || 'Unknown';
       await this.createNotification(tenantId, `[SMS SENT] to ${phone}: Order ${barcodeId} is washed, ironed and READY FOR PICKUP!`, 'info');
+    } else if (order.status === 'completed') {
+      // Re-trigger SMS confirmation for already completed orders
+      const phone = order.customer_mobile || ((order as any).supervisor_data?.order_details?.customer?.telephone) || 'Customer';
+      await this.createNotification(tenantId, `[SMS RE-CONFIRMED] to ${phone}: Order ${barcodeId} is ready for pickup!`, 'info');
     } else {
-      throw new Error('Order is already completed or delivered');
+      throw new Error('Order is already delivered and closed');
     }
     return order;
   }

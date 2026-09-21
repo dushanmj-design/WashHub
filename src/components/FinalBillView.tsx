@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Printer, Check, Scissors, HelpCircle, Bluetooth, Tag, ReceiptText, FileText, Wifi } from 'lucide-react';
+import { Printer, Check, Scissors, HelpCircle, Bluetooth, Tag, ReceiptText, FileText, Wifi, Zap } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { printHtml } from '../lib/printUtils';
-import { printDirectBluetooth, isWebBluetoothSupported, buildEscPosPayload } from '../lib/bluetoothPrint';
+import { printDirectBluetooth, printDirectRawBT, isWebBluetoothSupported, buildEscPosPayload } from '../lib/bluetoothPrint';
 import { getSavedNetworkPrinter, sendEscPosToNetworkPrinter, NetworkPrinterConfig } from '../lib/networkPrint';
 import NetworkPrinterModal from './NetworkPrinterModal';
 
@@ -183,6 +183,17 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
     }
   };
 
+  const handleRawBtPrint = (forVendor: boolean) => {
+    const res = printDirectRawBT(getEscPosData(forVendor));
+    if (res.success) {
+      setBtStatus('✓ Opened RawBT with 100% native 80mm ESC/POS stream!');
+      setTimeout(() => setBtStatus(null), 4000);
+    } else {
+      setBtStatus(`RawBT notice: ${res.message}`);
+      setTimeout(() => setBtStatus(null), 5000);
+    }
+  };
+
   // 1. CUSTOMER BILL (Balanced across full 80mm roll, bold contrast)
   const renderCustomerBill = () => (
     <div className="receipt-content-wrapper bg-white text-black font-sans w-full p-2" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
@@ -193,7 +204,7 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
         </h1>
         <div className="text-xs font-bold uppercase tracking-widest text-slate-800">Premium Laundry Service</div>
         <div className="text-xs font-semibold mt-0.5">Tel: {shopPhone}</div>
-        <div className="mt-1 bg-black text-white py-0.5 px-2 text-xs font-bold uppercase tracking-wider inline-block">
+        <div className="mt-1 bg-black text-white py-0.5 px-3 text-xs font-bold uppercase tracking-wider inline-block">
           FINAL CUSTOMER BILL
         </div>
       </div>
@@ -205,13 +216,13 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
       </div>
 
       {/* Bill Number Highlight */}
-      <div className="border-2 border-black p-1.5 text-center mb-2 bg-slate-50">
-        <div className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Bill Number</div>
-        <div className="text-2xl font-black tracking-widest">{billNumber}</div>
+      <div className="border-2 border-black p-2 text-center mb-2 bg-slate-50">
+        <div className="text-xs font-bold uppercase tracking-wider text-slate-700">Bill Number</div>
+        <div className="text-3xl font-black tracking-widest">{billNumber}</div>
       </div>
 
       {/* Customer Info Box */}
-      <div className="border border-black p-2 mb-2 text-xs space-y-1">
+      <div className="border border-black p-2 mb-2 text-sm space-y-1">
         <div className="flex justify-between items-baseline">
           <span className="font-bold text-slate-700">CLIENT:</span>
           <span className="font-bold uppercase text-sm">{payload.customer}</span>
@@ -223,47 +234,47 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
       </div>
 
       {/* Details Table */}
-      <div className="border border-black mb-2 text-xs">
-        <div className="bg-black text-white font-bold p-1 flex justify-between">
+      <div className="border border-black mb-2 text-sm">
+        <div className="bg-black text-white font-bold p-1.5 flex justify-between text-xs">
           <span>SERVICE / DETAILS</span>
           <span>INFO</span>
         </div>
-        <div className="p-1.5 space-y-1">
+        <div className="p-2 space-y-1.5">
           <div className="flex justify-between items-center">
             <span className="font-bold">Services:</span>
             <span className="font-bold uppercase">{payload.services}</span>
           </div>
           <div className="flex justify-between items-center border-t border-slate-200 pt-1">
             <span>Weight:</span>
-            <strong className="text-xs">{payload.weight}</strong>
+            <strong className="text-sm font-bold">{payload.weight}</strong>
           </div>
           {payload.pieces && (
             <div className="flex justify-between items-center border-t border-slate-200 pt-1">
               <span>Pieces:</span>
-              <strong className="text-xs">{payload.pieces}</strong>
+              <strong className="text-sm font-bold">{payload.pieces}</strong>
             </div>
           )}
         </div>
       </div>
 
       {/* Financial Summary */}
-      <div className="border-2 border-black p-2 mb-2 text-sm space-y-1">
+      <div className="border-2 border-black p-2 mb-2 text-base space-y-1.5">
         <div className="flex justify-between font-bold">
           <span>TOTAL AMOUNT:</span>
           <span>Rs. {payload.final_amount.toFixed(2)}</span>
         </div>
-        <div className="flex justify-between text-xs font-semibold">
+        <div className="flex justify-between text-sm font-semibold text-slate-800">
           <span>CASH RECEIVED:</span>
           <span>Rs. {payload.received_cash.toFixed(2)}</span>
         </div>
         {changeDue > 0 && (
-          <div className="flex justify-between text-xs font-semibold text-emerald-800 border-t border-slate-300 pt-1">
+          <div className="flex justify-between text-sm font-semibold text-emerald-800 border-t border-slate-300 pt-1">
             <span>CHANGE RETURNED:</span>
             <span>Rs. {changeDue.toFixed(2)}</span>
           </div>
         )}
         {balanceDue > 0 && (
-          <div className="flex justify-between font-black text-base border-t-2 border-black pt-1 text-red-700">
+          <div className="flex justify-between font-black text-lg border-t-2 border-black pt-1 text-red-700">
             <span>BALANCE DUE:</span>
             <span>Rs. {balanceDue.toFixed(2)}</span>
           </div>
@@ -271,7 +282,7 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
       </div>
 
       {/* Footer Info */}
-      <div className="text-center text-[10px] space-y-1 border-t border-black pt-2 text-slate-700">
+      <div className="text-center text-xs space-y-1 border-t border-black pt-2 text-slate-700">
         <p className="font-bold">Open: 7:30 AM – 7:30 PM</p>
         <p>Please present this bill when collecting your laundry.</p>
         <p>Kindly collect items within 30 days.</p>
@@ -292,22 +303,22 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
             <h2 className="text-2xl font-black uppercase tracking-tight leading-none">
               {payload.shopName?.toUpperCase() || 'WASH HUB'}
             </h2>
-            <div className="text-[11px] font-bold text-slate-800 mt-0.5">Tel: {shopPhone}</div>
+            <div className="text-xs font-bold text-slate-800 mt-0.5">Tel: {shopPhone}</div>
           </div>
           <div className="text-right">
-            <span className="text-[10px] font-black uppercase bg-black text-white px-1.5 py-0.5">
+            <span className="text-xs font-black uppercase bg-black text-white px-2 py-1">
               {hasIron ? 'WASH · DRY · IRON' : 'WASH · DRY'}
             </span>
           </div>
         </div>
 
         {/* Form Fields with clear rectangular outline boxes */}
-        <div className="space-y-1.5 text-xs">
+        <div className="space-y-1.5 text-sm">
           
           {/* Wash Row */}
           <div className="flex items-center">
-            <div className="w-24 font-bold text-sm">Wash :</div>
-            <div className="flex-1 border-2 border-black px-2 py-1 min-h-[26px] flex items-center justify-between font-bold text-xs bg-slate-50">
+            <div className="w-24 sm:w-28 font-bold text-sm">Wash :</div>
+            <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center justify-between font-bold text-sm bg-slate-50">
               <span>✓ Included</span>
               <span>[ Load ]</span>
             </div>
@@ -315,8 +326,8 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
 
           {/* Dry Row */}
           <div className="flex items-center">
-            <div className="w-24 font-bold text-sm">Dry :</div>
-            <div className="flex-1 border-2 border-black px-2 py-1 min-h-[26px] flex items-center justify-between font-bold text-xs bg-slate-50">
+            <div className="w-24 sm:w-28 font-bold text-sm">Dry :</div>
+            <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center justify-between font-bold text-sm bg-slate-50">
               <span>✓ Included</span>
               <span>[ Dryer ]</span>
             </div>
@@ -325,8 +336,8 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
           {/* Iron Row (ONLY present if Wash Dry Iron, per Wash Dry Iron.jpeg) */}
           {hasIron && (
             <div className="flex items-center">
-              <div className="w-24 font-bold text-sm">Iron :</div>
-              <div className="flex-1 border-2 border-black px-2 py-1 min-h-[26px] flex items-center justify-between font-bold text-xs bg-slate-50">
+              <div className="w-24 sm:w-28 font-bold text-sm">Iron :</div>
+              <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center justify-between font-bold text-sm bg-slate-50">
                 <span>✓ Included</span>
                 <span>[ Press ]</span>
               </div>
@@ -335,42 +346,42 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
 
           {/* Amount Row */}
           <div className="flex items-center">
-            <div className="w-24 font-bold text-sm">Amount :</div>
-            <div className="flex-1 border-2 border-black px-2 py-1 min-h-[26px] flex items-center justify-between font-black text-sm bg-slate-50">
+            <div className="w-24 sm:w-28 font-bold text-sm">Amount :</div>
+            <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center justify-between font-black text-base bg-slate-50">
               <span>Rs. {payload.final_amount.toFixed(2)}</span>
-              {balanceDue > 0 && <span className="text-[10px] font-normal text-red-600">(Due: Rs. {balanceDue.toFixed(2)})</span>}
+              {balanceDue > 0 && <span className="text-xs font-semibold text-red-600">(Due: Rs. {balanceDue.toFixed(2)})</span>}
             </div>
           </div>
 
           {/* In Date Row */}
           <div className="flex items-center">
-            <div className="w-24 font-bold text-sm">In date :</div>
-            <div className="flex-1 border-2 border-black px-2 py-1 min-h-[26px] flex items-center font-bold text-xs bg-slate-50">
+            <div className="w-24 sm:w-28 font-bold text-sm">In date :</div>
+            <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center font-bold text-sm bg-slate-50">
               {formattedDate} {formattedTime}
             </div>
           </div>
 
           {/* Name Row */}
           <div className="flex items-center">
-            <div className="w-24 font-bold text-sm">Name :</div>
-            <div className="flex-1 border-2 border-black px-2 py-1 min-h-[26px] flex items-center font-bold text-xs uppercase bg-slate-50 truncate">
+            <div className="w-24 sm:w-28 font-bold text-sm">Name :</div>
+            <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center font-bold text-sm uppercase bg-slate-50 truncate">
               {payload.customer}
             </div>
           </div>
 
           {/* Weight Row */}
           <div className="flex items-center">
-            <div className="w-24 font-bold text-sm">Weight :</div>
-            <div className="flex-1 border-2 border-black px-2 py-1 min-h-[26px] flex items-center justify-between font-bold text-xs bg-slate-50">
+            <div className="w-24 sm:w-28 font-bold text-sm">Weight :</div>
+            <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center justify-between font-bold text-sm bg-slate-50">
               <span>{payload.weight}</span>
-              {payload.pieces && <span className="text-[10px] text-slate-600">({payload.pieces} pcs)</span>}
+              {payload.pieces && <span className="text-xs text-slate-700">({payload.pieces} pcs)</span>}
             </div>
           </div>
 
           {/* Bill # Row */}
           <div className="flex items-center pt-0.5">
-            <div className="w-24 font-bold text-sm">Bill # :</div>
-            <div className="flex-1 border-2 border-black px-2 py-1 min-h-[28px] flex items-center justify-center font-black text-lg tracking-widest bg-slate-100">
+            <div className="w-24 sm:w-28 font-bold text-sm">Bill # :</div>
+            <div className="flex-1 border-2 border-black px-2.5 py-1.5 min-h-[32px] flex items-center justify-center font-black text-2xl tracking-widest bg-slate-100">
               {billNumber}
             </div>
           </div>
@@ -379,13 +390,13 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
       </div>
 
       {/* QR Code Section (Always printed with Vendor slip) */}
-      <div className="flex flex-col items-center justify-center py-2 border-t-2 border-dashed border-black">
-        <div className="text-xs font-black uppercase tracking-wider mb-1">SCAN WHEN READY</div>
-        <div className="p-1.5 bg-white border border-black rounded">
-          <QRCodeSVG value={payload.barcode || `WB-${billNumber}`} size={125} level="M" />
+      <div className="flex flex-col items-center justify-center py-2.5 border-t-2 border-dashed border-black">
+        <div className="text-sm font-black uppercase tracking-wider mb-1.5">SCAN WHEN READY</div>
+        <div className="p-2 bg-white border-2 border-black rounded">
+          <QRCodeSVG value={payload.barcode || `WB-${billNumber}`} size={140} level="M" />
         </div>
-        <div className="font-mono font-bold text-xs mt-1 tracking-wider">{payload.barcode || `WB-${billNumber}`}</div>
-        <div className="text-[10px] font-bold uppercase tracking-widest mt-0.5 text-slate-700">
+        <div className="font-mono font-bold text-sm mt-1.5 tracking-wider">{payload.barcode || `WB-${billNumber}`}</div>
+        <div className="text-xs font-bold uppercase tracking-widest mt-1 text-slate-700">
           VENDOR COPY · ATTACH TO LAUNDRY SACK
         </div>
       </div>
@@ -562,6 +573,15 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
           >
             <Printer className="h-3.5 w-3.5" />
             <span>Print Both</span>
+          </button>
+
+          <button
+            onClick={() => handleRawBtPrint(activePreviewTab === 'vendor')}
+            title="Opens licensed RawBT app with direct 80mm native ESC/POS thermal command stream"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-900 bg-amber-100 border border-amber-300 rounded-lg shadow-sm hover:bg-amber-200 transition-colors"
+          >
+            <Zap className="h-3.5 w-3.5 text-amber-700 fill-amber-600" />
+            <span>RawBT (Full 80mm)</span>
           </button>
 
           {isWebBluetoothSupported() && (

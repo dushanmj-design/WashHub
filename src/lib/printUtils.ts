@@ -30,7 +30,7 @@ export function printHtml(htmlContent: string, title: string) {
       <head>
         <base href="${window.location.origin}/">
         <title>${title}</title>
-        <meta name="viewport" content="width=380, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         ${styles}
         <style>
           * {
@@ -63,6 +63,8 @@ export function printHtml(htmlContent: string, title: string) {
               min-width: 100% !important;
               margin: 0 !important;
               padding: 0 !important;
+              font-size: 14px !important;
+              line-height: 1.25 !important;
             }
             .receipt-page { 
               width: 100% !important;
@@ -77,9 +79,41 @@ export function printHtml(htmlContent: string, title: string) {
               width: 100% !important;
               min-width: 100% !important;
               max-width: 100% !important;
-              margin: 0 !important;
-              padding: 1.5mm 1mm !important;
+              margin: 0 auto !important;
+              padding: 2mm 2.5mm !important;
               box-sizing: border-box !important;
+            }
+            .receipt-content-wrapper * {
+              box-sizing: border-box !important;
+            }
+            /* Scale typography up for thermal print readability & full width usage */
+            .receipt-content-wrapper .text-\[10px\],
+            .receipt-content-wrapper .text-\[11px\] {
+              font-size: 12px !important;
+              line-height: 1.2 !important;
+            }
+            .receipt-content-wrapper .text-xs {
+              font-size: 13.5px !important;
+              line-height: 1.25 !important;
+            }
+            .receipt-content-wrapper .text-sm {
+              font-size: 15px !important;
+              line-height: 1.25 !important;
+            }
+            .receipt-content-wrapper .text-base {
+              font-size: 17px !important;
+            }
+            .receipt-content-wrapper .text-lg {
+              font-size: 18px !important;
+            }
+            .receipt-content-wrapper .text-xl {
+              font-size: 21px !important;
+            }
+            .receipt-content-wrapper .text-2xl {
+              font-size: 24px !important;
+            }
+            .receipt-content-wrapper .text-3xl {
+              font-size: 28px !important;
             }
           }
           /* Screen preview inside popup */

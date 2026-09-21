@@ -347,16 +347,14 @@ const handleOrderIntake = async (orderData: {
         await refreshTenantData();
         playBeep();
         
-        // When washing complete cycle is scanned by supervisor, show SMS sent notification popup
-        // Note: No print preview is triggered here as final receipt was already printed from the beginning!
-        if (result.sms_sent) {
-          const targetPhone = result.customer_phone || result.customer_mobile || 'customer';
-          setSuccessMessage(`Order ${barcodeId} marked ${result.nextStatus.toUpperCase()}! SMS notification has been successfully sent to ${targetPhone}.`);
-          setTimeout(() => setSuccessMessage(''), 4500);
-        } else {
-          setSuccessMessage(`Success! Barcode ${barcodeId} advanced to ${result.nextStatus}`);
-          setTimeout(() => setSuccessMessage(''), 2500);
-        }
+        // Ensure all print preview states are suppressed and cleared
+        setFinalBillPayload(null);
+        setStickerPayload(null);
+        
+        const targetPhone = result.customer_phone || result.customer_mobile || (result.order && result.order.customer_mobile) || 'Customer';
+        const statusDisplay = (result.status || 'READY FOR PICKUP').toUpperCase();
+        setSuccessMessage(`Order ${barcodeId} is ${statusDisplay}! Customer SMS dispatch confirmed to ${targetPhone}.`);
+        setTimeout(() => setSuccessMessage(''), 6000);
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Barcode lookup failed');
@@ -521,13 +519,19 @@ const handleOrderIntake = async (orderData: {
 
         {/* Global Success Popup */}
         {successMessage && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in pointer-events-none">
-            <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl pointer-events-auto transform transition-all p-6 text-center border-2 border-emerald-500 shadow-emerald-500/20 flex flex-col items-center">
-              <div className="h-16 w-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
-                <CheckCircle2 className="h-8 w-8" />
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl p-6 text-center border-2 border-emerald-500 shadow-emerald-500/20 flex flex-col items-center">
+              <div className="h-16 w-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4 ring-8 ring-emerald-50">
+                <CheckCircle2 className="h-9 w-9" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Scan Successful!</h3>
-              <p className="text-sm text-slate-500 font-medium">{successMessage}</p>
+              <h3 className="text-xl font-bold text-slate-900 mb-1.5">Customer SMS Sent Successfully!</h3>
+              <p className="text-sm text-slate-600 font-medium mb-5">{successMessage}</p>
+              <button
+                onClick={() => setSuccessMessage('')}
+                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition cursor-pointer"
+              >
+                Done
+              </button>
             </div>
           </div>
         )}

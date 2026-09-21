@@ -6,6 +6,24 @@ export function isWebBluetoothSupported(): boolean {
   return typeof navigator !== 'undefined' && 'bluetooth' in navigator;
 }
 
+export function printDirectRawBT(data: EscPosReceiptData): { success: boolean; message?: string } {
+  try {
+    const bytes = buildEscPosPayload(data);
+    let binary = '';
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+    // Direct RawBT protocol URI - passes raw ESC/POS commands directly into licensed RawBT
+    const rawbtUri = `rawbt:data:application/octet-stream;base64,${base64}`;
+    window.location.href = rawbtUri;
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, message: err.message || 'RawBT launch failed' };
+  }
+}
+
 export interface EscPosReceiptData {
   shopName: string;
   phone: string;
