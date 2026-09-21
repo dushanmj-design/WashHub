@@ -27,7 +27,7 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
   const billNumber = payload.barcode ? payload.barcode.replace('WB-', '') : '1025';
 
   const renderReceipt = (isVendorCopy: boolean) => (
-    <div className="bg-white text-black font-serif relative pb-2 mx-auto w-full" style={{ fontFamily: '"Times New Roman", Times, serif' }}>
+    <div className="receipt-content-wrapper bg-white text-black font-serif relative pb-2 mx-auto w-full" style={{ fontFamily: '"Times New Roman", Times, serif' }}>
       {/* Header */}
       <div className="text-center text-white bg-zinc-800 pb-1 pt-2 px-2" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/black-paper.png")', backgroundSize: 'cover' }}>
         <h1 className="text-4xl font-bold tracking-tight mb-1" style={{ fontFamily: '"Arial Black", Arial, sans-serif' }}>Wash Hub</h1>
