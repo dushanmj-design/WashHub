@@ -250,9 +250,9 @@ export function buildEscPosPayload(data: EscPosReceiptData): Uint8Array {
     writeText(`- Check care labels before washing & drying\n`);
   }
 
-  // Feed 4 lines & Auto Paper Cut
-  writeText(`\n\n\n\n`);
-  chunks.push(0x1D, 0x56, 0x41, 0x10); // GS V 65 16 (Full cut)
+  // Feed paper past printhead-to-cutter knife distance (~24mm) before auto-cut
+  writeText(`\n\n\n\n\n\n\n\n`);
+  chunks.push(0x1D, 0x56, 0x41, 0x18); // GS V 'A' 24 (Feed 24 dots + Full cut)
 
   return new Uint8Array(chunks);
 }

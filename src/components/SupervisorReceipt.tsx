@@ -388,6 +388,9 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
             <span>We are not responsible for any colorfastness in cloths, please make sure to read the "Care Label" before provide to washing & drying.</span>
           </p>
         </div>
+
+        {/* Paper Feed & Cutter Clearance Spacer - feeds 22mm blank paper so cutter never slices bottom text */}
+        <div className="receipt-cutter-spacer w-full" style={{ minHeight: '18mm' }} aria-hidden="true"></div>
       </div>
     );
   };
@@ -499,6 +502,8 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
         </div>
       </div>
 
+      {/* Paper Feed & Cutter Clearance Spacer - feeds 22mm blank paper so cutter never slices bottom barcode/tag */}
+      <div className="receipt-cutter-spacer w-full" style={{ minHeight: '18mm' }} aria-hidden="true"></div>
     </div>
   );
 
@@ -632,13 +637,13 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
 
         {/* Hidden Printable Nodes */}
         <div id="customer-receipt-print" className="hidden">
-          <div className="receipt-page" style={{ width: '100%' }}>
+          <div className="receipt-page receipt-page-last" style={{ width: '100%', pageBreakAfter: 'auto', breakAfter: 'auto' }}>
             {renderCustomerReceipt()}
           </div>
         </div>
 
         <div id="vendor-receipt-print" className="hidden">
-          <div className="receipt-page" style={{ width: '100%' }}>
+          <div className="receipt-page receipt-page-last" style={{ width: '100%', pageBreakAfter: 'auto', breakAfter: 'auto' }}>
             {renderVendorReceipt()}
           </div>
         </div>
@@ -647,7 +652,7 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
           <div className="receipt-page" style={{ width: '100%', pageBreakAfter: 'always', breakAfter: 'page' }}>
             {renderCustomerReceipt()}
           </div>
-          <div className="receipt-page" style={{ width: '100%', pageBreakAfter: 'always', breakAfter: 'page' }}>
+          <div className="receipt-page receipt-page-last" style={{ width: '100%', pageBreakAfter: 'auto', breakAfter: 'auto' }}>
             {renderVendorReceipt()}
           </div>
         </div>

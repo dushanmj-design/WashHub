@@ -388,6 +388,9 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
             <span>We are not responsible for any colorfastness in cloths, please make sure to read the "Care Label" before provide to washing & drying.</span>
           </p>
         </div>
+
+        {/* Paper Feed & Cutter Clearance Spacer - feeds 22mm blank paper so cutter never slices bottom text */}
+        <div className="receipt-cutter-spacer w-full" style={{ minHeight: '18mm' }} aria-hidden="true"></div>
       </div>
     );
   };
@@ -501,6 +504,8 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
         </div>
       </div>
 
+      {/* Paper Feed & Cutter Clearance Spacer - feeds 22mm blank paper so cutter never slices bottom barcode/tag */}
+      <div className="receipt-cutter-spacer w-full" style={{ minHeight: '18mm' }} aria-hidden="true"></div>
     </div>
   );
 
@@ -580,27 +585,49 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
         </div>
       )}
 
-      {/* Help / RawBT Tips Accordion Banner */}
+      {/* Help / Printer Manual Settings Guide Banner */}
       {showTipsModal && (
-        <div className="bg-amber-50 border-b border-amber-200 p-3 text-xs text-amber-950 space-y-1.5 shrink-0">
-          <div className="font-bold flex items-center gap-1 text-amber-900">
-            <HelpCircle className="w-4 h-4 text-amber-600" />
-            <span>How to remove RawBT app message & print full width:</span>
+        <div className="bg-amber-50 border-b border-amber-200 p-3 text-xs text-amber-950 space-y-2 shrink-0">
+          <div className="font-black flex items-center justify-between text-amber-900 text-sm">
+            <div className="flex items-center gap-1.5">
+              <HelpCircle className="w-4 h-4 text-amber-700" />
+              <span>Manual Printer & RawBT Settings (Full Width 80mm Alignment)</span>
+            </div>
+            <button 
+              onClick={() => setShowTipsModal(false)}
+              className="text-amber-800 hover:text-amber-950 font-bold px-1.5 py-0.5 rounded hover:bg-amber-100"
+            >
+              ✕
+            </button>
           </div>
-          <ol className="list-decimal list-inside space-y-1 text-[11px] text-amber-900 leading-relaxed">
-            <li>
-              <strong>Remove RawBT Watermark:</strong> RawBT is a 3rd-party Android app. Open RawBT on your Android tablet → tap <strong>Menu (3 lines)</strong> → <strong>License</strong> → Buy License (one-time ~$3-$5 on Google Play) to permanently remove the trial text.
-            </li>
-            <li>
-              <strong>Free alternative without watermark:</strong> Install <strong>"Quick Printer (ESC/POS)"</strong> or <strong>"ESC POS Bluetooth Print Service"</strong> from Google Play, and choose it in Android print dialog.
-            </li>
-            <li>
-              <strong>Direct Bluetooth (No App Needed):</strong> Click the <strong>"Bluetooth Direct"</strong> button below to print directly from Chrome without RawBT!
-            </li>
-            <li>
-              <strong>Spread full width:</strong> In the Android print preview, make sure <strong>Paper Size</strong> is set to <strong>80mm</strong> (not ISO A4), and in RawBT set <strong>Paper width: 80mm (576 dots)</strong>.
-            </li>
-          </ol>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] text-amber-900 leading-relaxed">
+            <div className="bg-white/80 p-2 rounded border border-amber-200">
+              <strong className="text-amber-950 block mb-1">1. RawBT App Settings (Fixes Left Alignment):</strong>
+              <ul className="list-disc list-inside space-y-0.5 text-slate-800">
+                <li>Open <strong>RawBT app</strong> on your Android tablet/phone.</li>
+                <li>Tap <strong>Settings → Printer → Paper Format</strong>: Change from <em>58mm (384 dots)</em> to <span className="font-bold text-black">80mm (576 dots)</span>.</li>
+                <li>In <strong>Settings → Margins</strong>: Set Left = <strong>0</strong>, Right = <strong>0</strong>.</li>
+                <li>In <strong>Settings → Graphics</strong>: Check <span className="font-bold text-black">"Autoscale to paper width"</span> or set Print method to <strong>"Driver (Bitmap)"</strong>.</li>
+              </ul>
+            </div>
+
+            <div className="bg-white/80 p-2 rounded border border-amber-200">
+              <strong className="text-amber-950 block mb-1">2. Android / Browser Print Dialog:</strong>
+              <ul className="list-disc list-inside space-y-0.5 text-slate-800">
+                <li><strong>Paper size:</strong> Choose <span className="font-bold text-black">80mm</span> or <span className="font-bold text-black">Roll Paper 80x297mm</span> (Never leave as ISO A4 or Letter).</li>
+                <li><strong>Margins:</strong> Select <span className="font-bold text-black">None</span> (default margins shrink the width).</li>
+                <li><strong>Scale:</strong> Select <span className="font-bold text-black">100%</span> or <span className="font-bold text-black">Fit to printable area</span>.</li>
+                <li><strong>Options:</strong> Check <span className="font-bold text-black">Background graphics</span>.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="bg-amber-100/60 p-2 rounded text-[11px] text-amber-950 flex flex-wrap items-center justify-between gap-2">
+            <span>
+              💡 <strong>Direct Bluetooth Option:</strong> If RawBT still resizes, click the <strong>"Direct BT"</strong> button below to print native ESC/POS commands directly to your printer with zero app scaling.
+            </span>
+          </div>
         </div>
       )}
 
@@ -612,13 +639,13 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
 
         {/* Hidden Printable Nodes */}
         <div id="final-bill-customer-print" className="hidden">
-          <div className="receipt-page" style={{ width: '100%' }}>
+          <div className="receipt-page receipt-page-last" style={{ width: '100%', pageBreakAfter: 'auto', breakAfter: 'auto' }}>
             {renderCustomerBill()}
           </div>
         </div>
 
         <div id="final-bill-vendor-print" className="hidden">
-          <div className="receipt-page" style={{ width: '100%' }}>
+          <div className="receipt-page receipt-page-last" style={{ width: '100%', pageBreakAfter: 'auto', breakAfter: 'auto' }}>
             {renderVendorTag()}
           </div>
         </div>
@@ -627,7 +654,7 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
           <div className="receipt-page" style={{ width: '100%', pageBreakAfter: 'always', breakAfter: 'page' }}>
             {renderCustomerBill()}
           </div>
-          <div className="receipt-page" style={{ width: '100%', pageBreakAfter: 'always', breakAfter: 'page' }}>
+          <div className="receipt-page receipt-page-last" style={{ width: '100%', pageBreakAfter: 'auto', breakAfter: 'auto' }}>
             {renderVendorTag()}
           </div>
         </div>

@@ -82,13 +82,31 @@ export function printHtml(htmlContent: string, title: string) {
               page-break-after: always;
               break-after: page;
             }
+            /* Prevent duplicate cuts or tiny shredded strips after the final bill */
+            .receipt-page:last-child,
+            .receipt-page.receipt-page-last { 
+              page-break-after: auto !important;
+              break-after: auto !important;
+            }
+            /* Spacing for subsequent bills */
+            .receipt-page + .receipt-page {
+              padding-top: 3mm !important;
+            }
             .receipt-content-wrapper { 
               width: 76mm !important;
               min-width: 76mm !important;
               max-width: 76mm !important;
               margin: 0 auto !important;
-              padding: 1.5mm 1.5mm !important;
+              padding: 1.5mm 1.5mm 0 1.5mm !important;
               box-sizing: border-box !important;
+            }
+            /* Feeds 22mm blank paper past thermal head so the auto cutter knife cuts safely on empty paper */
+            .receipt-cutter-spacer {
+              display: block !important;
+              height: 22mm !important;
+              min-height: 22mm !important;
+              width: 100% !important;
+              clear: both !important;
             }
             .receipt-content-wrapper * {
               box-sizing: border-box !important;
@@ -110,6 +128,11 @@ export function printHtml(htmlContent: string, title: string) {
               box-shadow: 0 4px 14px rgba(0,0,0,0.15);
               padding: 14px !important;
               margin-bottom: 20px;
+            }
+            .receipt-cutter-spacer {
+              display: block !important;
+              height: 10px !important;
+              min-height: 10px !important;
             }
           }
           ${styleContent}
