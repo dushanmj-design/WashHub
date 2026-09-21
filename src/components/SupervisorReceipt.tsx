@@ -1,7 +1,8 @@
-import React from 'react';
-import { Printer, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { Printer, Check, Scissors, HelpCircle, Bluetooth, Tag, ReceiptText } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { printHtml } from '../lib/printUtils';
+import { printDirectBluetooth, isWebBluetoothSupported } from '../lib/bluetoothPrint';
 
 interface SupervisorReceiptProps {
   payload: any;
@@ -10,193 +11,455 @@ interface SupervisorReceiptProps {
 }
 
 export default function SupervisorReceipt({ payload, onClose, inline }: SupervisorReceiptProps) {
+  const [activePreviewTab, setActivePreviewTab] = useState<'customer' | 'vendor'>('customer');
+  const [showTipsModal, setShowTipsModal] = useState(false);
+  const [btStatus, setBtStatus] = useState<string | null>(null);
+
   if (!payload || !payload.supervisor_data) return null;
   
   const rawData = payload.supervisor_data;
   const orderDetails = rawData.order_details || rawData;
   
-  const handlePrint = () => {
+  const billNumber = payload.barcode ? payload.barcode.replace('WB-', '') : '1025';
+
+  // Check if order includes Iron
+  const hasIron = Boolean(
+    orderDetails.services?.iron || 
+    (orderDetails.billing?.iron_amount && orderDetails.billing.iron_amount > 0) ||
+    (typeof payload.services === 'string' && payload.services.toLowerCase().includes('iron'))
+  );
+
+  const shopPhone = '011 3041630, 011 2735490';
+  const customerName = orderDetails.customer?.name || payload.customer || 'CUSTOMER';
+  const customerPhone = orderDetails.customer?.telephone || payload.mobile || '-';
+  const inDate = orderDetails.order_metadata?.date || payload.in_date || new Date().toISOString().slice(0, 10);
+  const inTime = orderDetails.order_metadata?.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const weightDisplay = orderDetails.specs?.weight_kg ? `${orderDetails.specs.weight_kg} kg` : (payload.weight || '-');
+  const qtyDisplay = orderDetails.specs?.quantity || payload.pieces || '0';
+  const totalDisplay = orderDetails.billing?.total_amount ? orderDetails.billing.total_amount.toFixed(2) : (payload.final_amount || 0).toFixed(2);
+  const advanceDisplay = orderDetails.billing?.advance ? orderDetails.billing.advance.toFixed(2) : '0.00';
+  const balanceDisplay = orderDetails.billing?.balance ? orderDetails.billing.balance.toFixed(2) : totalDisplay;
+
+  // Print Handlers
+  const handlePrintBoth = () => {
     const el = document.getElementById('supervisor-receipt-print');
-    if (el) {
-      // Use standard printHtml which adds basic styles. The element itself contains the page breaks.
-      printHtml(el.innerHTML, 'Supervisor Receipt');
+    if (el) printHtml(el.innerHTML, `Receipt - Bill #${billNumber}`);
+  };
+
+  const handlePrintCustomer = () => {
+    const el = document.getElementById('customer-receipt-print');
+    if (el) printHtml(el.innerHTML, `Customer Receipt #${billNumber}`);
+  };
+
+  const handlePrintVendor = () => {
+    const el = document.getElementById('vendor-receipt-print');
+    if (el) printHtml(el.innerHTML, `Vendor Tag #${billNumber}`);
+  };
+
+  const handleBluetoothPrint = async (forVendor: boolean) => {
+    setBtStatus('Searching for Bluetooth printer...');
+    const res = await printDirectBluetooth({
+      shopName: 'WASH HUB',
+      phone: shopPhone,
+      billNumber,
+      isVendorCopy: forVendor,
+      hasIron,
+      date: inDate,
+      customerName,
+      customerPhone,
+      weight: weightDisplay,
+      pieces: qtyDisplay,
+      washAmount: orderDetails.billing?.wash_amount,
+      dryAmount: orderDetails.billing?.dry_amount,
+      ironAmount: orderDetails.billing?.iron_amount,
+      totalAmount: totalDisplay,
+      advanceAmount: advanceDisplay,
+      balanceAmount: balanceDisplay,
+      barcode: payload.barcode || `WB-${billNumber}`
+    });
+
+    if (res.success) {
+      setBtStatus('✓ Printed directly via Bluetooth without watermark!');
+      setTimeout(() => setBtStatus(null), 4000);
+    } else {
+      setBtStatus(`Notice: ${res.message}`);
+      setTimeout(() => setBtStatus(null), 6000);
     }
   };
 
-  
-  const billNumber = payload.barcode ? payload.barcode.replace('WB-', '') : '1025';
-
-  const renderReceipt = (isVendorCopy: boolean) => (
-    <div className="receipt-content-wrapper bg-white text-black font-serif relative pb-2 mx-auto w-full" style={{ fontFamily: '"Times New Roman", Times, serif' }}>
-      {/* Header */}
-      <div className="text-center text-white bg-zinc-800 pb-1 pt-2 px-2" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/black-paper.png")', backgroundSize: 'cover' }}>
-        <h1 className="text-4xl font-bold tracking-tight mb-1" style={{ fontFamily: '"Arial Black", Arial, sans-serif' }}>Wash Hub</h1>
-        <div className="text-xs uppercase tracking-widest font-sans font-semibold mb-1 opacity-90">Premium Laundry</div>
-        <div className="text-[10px] uppercase tracking-wider font-sans mb-1 pb-1 border-b border-white/20">Customer Receipt</div>
-        <div className="flex justify-between items-end mt-1 px-1">
-          <div className="text-left leading-tight">
-            <div className="text-[10px] opacity-70">DATE</div>
-            <div className="text-xs font-bold">{orderDetails.order_metadata.date}</div>
-          </div>
-          <div className="text-right leading-tight">
-            <div className="text-[10px] opacity-70">TIME</div>
-            <div className="text-xs font-bold">{orderDetails.order_metadata.time}</div>
-          </div>
+  // 1. CUSTOMER RECEIPT (Balanced, full 80mm roll width, bold contrast)
+  const renderCustomerReceipt = () => (
+    <div className="receipt-content-wrapper bg-white text-black font-sans w-full p-2" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+      {/* Brand Header */}
+      <div className="text-center border-b-2 border-black pb-2 mb-2">
+        <h1 className="text-3xl font-black tracking-tight leading-tight uppercase">Wash Hub</h1>
+        <div className="text-xs font-bold uppercase tracking-widest text-slate-800">Premium Laundry Service</div>
+        <div className="text-xs font-semibold mt-0.5">Tel: {shopPhone}</div>
+        <div className="mt-1 bg-black text-white py-0.5 px-2 text-xs font-bold uppercase tracking-wider inline-block">
+          CUSTOMER RECEIPT
         </div>
       </div>
-      
-      {/* Customer Info */}
-      <div className="border-[1.5px] border-black m-1 mt-2 p-1.5 flex flex-col gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-        <div className="flex justify-between items-baseline border-b border-black pb-1">
-          <span className="text-[10px] font-bold">NAME:</span>
-          <span className="text-xs font-bold uppercase truncate max-w-[150px]">{orderDetails.customer.name}</span>
-        </div>
+
+      {/* Date & Time Bar */}
+      <div className="flex justify-between items-center text-xs font-bold border-b border-black pb-1 mb-2">
+        <span>DATE: {inDate}</span>
+        <span>TIME: {inTime}</span>
+      </div>
+
+      {/* Bill Number Highlight */}
+      <div className="border-2 border-black p-1.5 text-center mb-2 bg-slate-50">
+        <div className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Bill Number</div>
+        <div className="text-2xl font-black tracking-widest">{billNumber}</div>
+      </div>
+
+      {/* Customer Info Box */}
+      <div className="border border-black p-2 mb-2 text-xs space-y-1">
         <div className="flex justify-between items-baseline">
-          <span className="text-[10px] font-bold">TEL:</span>
-          <span className="text-xs font-bold">{orderDetails.customer.telephone}</span>
+          <span className="font-bold text-slate-700">NAME:</span>
+          <span className="font-bold uppercase text-sm">{customerName}</span>
+        </div>
+        <div className="flex justify-between items-baseline border-t border-slate-300 pt-1">
+          <span className="font-bold text-slate-700">TEL:</span>
+          <span className="font-bold text-sm">{customerPhone}</span>
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-2 mt-2 border-y-2 border-black py-1">
-        <div className="text-[10px] font-bold tracking-widest uppercase">Bill No:</div>
-        <div className="text-xl font-bold tracking-wider">{billNumber}</div>
-      </div>
-
-      <div className="flex w-full mt-2">
-        {/* Left Col */}
-        <div className="w-[50%] pr-2 flex flex-col justify-start">
-          <div className="flex flex-col text-sm font-bold">
-            <div className="flex justify-between border-b border-black/30 pb-0.5">
-              <span>Qty:</span><span>{orderDetails.specs.quantity || 0}</span>
-            </div>
-            <div className="flex justify-between border-b border-black/30 pb-0.5 mt-1">
-              <span>Wgt:</span><span>{orderDetails.specs.weight_kg ? `${orderDetails.specs.weight_kg}kg` : '-'}</span>
-            </div>
-            <div className="flex justify-between pb-0.5 mt-1">
-              <span>Del:</span><span className="text-xs">{orderDetails.order_metadata.delivery_date}</span>
-            </div>
-          </div>
-          
-          <div className="flex flex-col text-[11px] font-bold mt-2 space-y-1 italic">
-            <div className="flex justify-between items-center">
-              <span>Fold</span>
-              <div className="w-4 h-4 border border-black flex items-center justify-center">
-                {orderDetails.specs.packaging === 'fold' && <span>✓</span>}
-              </div>
-            </div>
-            <div className="flex justify-between items-center">
-              <span>Hanger</span>
-              <div className="w-4 h-4 border border-black flex items-center justify-center">
-                {orderDetails.specs.packaging === 'hanger' && <span>✓</span>}
-              </div>
-            </div>
-          </div>
+      {/* Service & Spec Table */}
+      <div className="border border-black mb-2 text-xs">
+        <div className="bg-black text-white font-bold p-1 flex justify-between">
+          <span>SERVICE / DETAILS</span>
+          <span>AMOUNT (Rs)</span>
         </div>
-        
-        {/* Right Col */}
-        <div className="w-[50%] pl-2 flex flex-col space-y-1 justify-start border-l-2 border-black">
-          <div className="flex items-center justify-between text-xs font-bold">
-            <span>Wash {orderDetails.services.wash && '✓'}</span>
-            <span>{orderDetails.billing.wash_amount > 0 ? orderDetails.billing.wash_amount.toFixed(0) : '-'}</span>
+        <div className="p-1.5 space-y-1">
+          <div className="flex justify-between items-center">
+            <span className="font-bold">Wash {orderDetails.services?.wash ? '✓' : ''}</span>
+            <span>{orderDetails.billing?.wash_amount > 0 ? orderDetails.billing.wash_amount.toFixed(2) : '-'}</span>
           </div>
-          <div className="flex items-center justify-between text-xs font-bold">
-            <span>Dry {orderDetails.services.dry && '✓'}</span>
-            <span>{orderDetails.billing.dry_amount > 0 ? orderDetails.billing.dry_amount.toFixed(0) : '-'}</span>
+          <div className="flex justify-between items-center border-t border-slate-200 pt-1">
+            <span className="font-bold">Dry {orderDetails.services?.dry ? '✓' : ''}</span>
+            <span>{orderDetails.billing?.dry_amount > 0 ? orderDetails.billing.dry_amount.toFixed(2) : '-'}</span>
           </div>
-          <div className="flex items-center justify-between text-xs font-bold">
-            <span>Iron {orderDetails.services.iron && '✓'}</span>
-            <span>{orderDetails.billing.iron_amount > 0 ? orderDetails.billing.iron_amount.toFixed(0) : '-'}</span>
+          <div className="flex justify-between items-center border-t border-slate-200 pt-1">
+            <span className="font-bold">Iron {orderDetails.services?.iron ? '✓' : ''}</span>
+            <span>{orderDetails.billing?.iron_amount > 0 ? orderDetails.billing.iron_amount.toFixed(2) : '-'}</span>
+          </div>
+          <div className="flex justify-between items-center border-t border-slate-200 pt-1 text-[11px]">
+            <span>Weight: <strong className="text-xs">{weightDisplay}</strong></span>
+            <span>Pieces: <strong className="text-xs">{qtyDisplay}</strong></span>
+          </div>
+          <div className="flex justify-between items-center border-t border-slate-200 pt-1 text-[11px]">
+            <span>Delivery: <strong>{orderDetails.order_metadata?.delivery_date || '-'}</strong></span>
+            <span>Pack: <strong>{orderDetails.specs?.packaging === 'hanger' ? 'Hanger' : 'Fold'}</strong></span>
           </div>
         </div>
       </div>
-
-      <div className="w-full h-[2px] bg-black my-2"></div>
 
       {/* Totals Section */}
-      <div className="space-y-1 mb-2 px-2 text-sm">
+      <div className="border-2 border-black p-2 mb-2 text-sm space-y-1">
         <div className="flex justify-between font-bold">
-          <span>TOTAL</span>
-          <span>Rs. {orderDetails.billing.total_amount.toFixed(2)}</span>
+          <span>TOTAL:</span>
+          <span>Rs. {totalDisplay}</span>
         </div>
-        <div className="flex justify-between font-bold">
-          <span>ADVANCE</span>
-          <span>Rs. {orderDetails.billing.advance.toFixed(2)}</span>
+        <div className="flex justify-between text-xs font-semibold">
+          <span>ADVANCE PAID:</span>
+          <span>Rs. {advanceDisplay}</span>
         </div>
-        <div className="flex justify-between font-bold text-base">
-          <span>BALANCE</span>
-          <span>Rs. {orderDetails.billing.balance.toFixed(2)}</span>
+        <div className="flex justify-between font-black text-base border-t-2 border-black pt-1">
+          <span>BALANCE DUE:</span>
+          <span>Rs. {balanceDisplay}</span>
         </div>
       </div>
 
-      <div className="w-full border-t-2 border-black border-dashed my-2"></div>
+      {/* Footer Info */}
+      <div className="text-center text-[10px] space-y-1 border-t border-black pt-2 text-slate-700">
+        <p className="font-bold">Open: 7:30 AM – 7:30 PM</p>
+        <p>Please present this receipt when collecting your laundry.</p>
+        <p>Kindly collect items within 30 days.</p>
+        <p className="font-bold uppercase tracking-wider text-black pt-0.5">Thank You For Choosing Wash Hub!</p>
+      </div>
+    </div>
+  );
+
+  // 2. VENDOR WORKSHOP TAG (Matches Wash Dry.jpeg / Wash Dry Iron.jpeg + QR Code)
+  const renderVendorReceipt = () => (
+    <div className="receipt-content-wrapper bg-white text-black font-sans w-full p-2" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
       
-      {isVendorCopy && (
-        <div className="flex flex-col items-center justify-center mb-2">
-           <div className="text-[10px] font-bold mb-1">SCAN WHEN READY</div>
-           <QRCodeSVG value={payload.barcode} size={100} level="M" />
+      {/* Outer Card replicating physical tag card */}
+      <div className="border-2 border-black p-2 bg-white mb-2">
+        {/* Brand & Phone Block */}
+        <div className="flex justify-between items-start border-b-2 border-black pb-1 mb-2">
+          <div>
+            <h2 className="text-2xl font-black uppercase tracking-tight leading-none">Wash Hub</h2>
+            <div className="text-[11px] font-bold text-slate-800 mt-0.5">Tel: {shopPhone}</div>
+          </div>
+          <div className="text-right">
+            <span className="text-[10px] font-black uppercase bg-black text-white px-1.5 py-0.5">
+              {hasIron ? 'WASH · DRY · IRON' : 'WASH · DRY'}
+            </span>
+          </div>
         </div>
-      )}
 
-      {/* Footer */}
-      <div className="bg-black text-white text-center py-1 text-[10px] font-bold mb-2">
-        Open 7.30 am. to 7.30 pm.
+        {/* Form Fields with clear rectangular outline boxes */}
+        <div className="space-y-1.5 text-xs">
+          
+          {/* Wash Row */}
+          <div className="flex items-center">
+            <div className="w-24 font-bold text-sm">Wash :</div>
+            <div className="flex-1 border-2 border-black px-2 py-1 min-h-[26px] flex items-center justify-between font-bold text-xs bg-slate-50">
+              <span>{orderDetails.services?.wash ? '✓ Included' : '[  ]'}</span>
+              <span>{orderDetails.billing?.wash_amount > 0 ? `Rs. ${orderDetails.billing.wash_amount.toFixed(0)}` : ''}</span>
+            </div>
+          </div>
+
+          {/* Dry Row */}
+          <div className="flex items-center">
+            <div className="w-24 font-bold text-sm">Dry :</div>
+            <div className="flex-1 border-2 border-black px-2 py-1 min-h-[26px] flex items-center justify-between font-bold text-xs bg-slate-50">
+              <span>{orderDetails.services?.dry ? '✓ Included' : '[  ]'}</span>
+              <span>{orderDetails.billing?.dry_amount > 0 ? `Rs. ${orderDetails.billing.dry_amount.toFixed(0)}` : ''}</span>
+            </div>
+          </div>
+
+          {/* Iron Row (ONLY present if Wash Dry Iron, per Wash Dry Iron.jpeg) */}
+          {hasIron && (
+            <div className="flex items-center">
+              <div className="w-24 font-bold text-sm">Iron :</div>
+              <div className="flex-1 border-2 border-black px-2 py-1 min-h-[26px] flex items-center justify-between font-bold text-xs bg-slate-50">
+                <span>{orderDetails.services?.iron ? '✓ Included' : '[  ]'}</span>
+                <span>{orderDetails.billing?.iron_amount > 0 ? `Rs. ${orderDetails.billing.iron_amount.toFixed(0)}` : ''}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Amount Row */}
+          <div className="flex items-center">
+            <div className="w-24 font-bold text-sm">Amount :</div>
+            <div className="flex-1 border-2 border-black px-2 py-1 min-h-[26px] flex items-center justify-between font-black text-sm bg-slate-50">
+              <span>Rs. {totalDisplay}</span>
+              {advanceDisplay !== '0.00' && <span className="text-[10px] font-normal text-slate-600">(Bal: Rs. {balanceDisplay})</span>}
+            </div>
+          </div>
+
+          {/* In Date Row */}
+          <div className="flex items-center">
+            <div className="w-24 font-bold text-sm">In date :</div>
+            <div className="flex-1 border-2 border-black px-2 py-1 min-h-[26px] flex items-center font-bold text-xs bg-slate-50">
+              {inDate} {inTime}
+            </div>
+          </div>
+
+          {/* Name Row */}
+          <div className="flex items-center">
+            <div className="w-24 font-bold text-sm">Name :</div>
+            <div className="flex-1 border-2 border-black px-2 py-1 min-h-[26px] flex items-center font-bold text-xs uppercase bg-slate-50 truncate">
+              {customerName}
+            </div>
+          </div>
+
+          {/* Weight Row */}
+          <div className="flex items-center">
+            <div className="w-24 font-bold text-sm">Weight :</div>
+            <div className="flex-1 border-2 border-black px-2 py-1 min-h-[26px] flex items-center justify-between font-bold text-xs bg-slate-50">
+              <span>{weightDisplay}</span>
+              <span className="text-[10px] text-slate-600">({qtyDisplay} pcs)</span>
+            </div>
+          </div>
+
+          {/* Bill # Row */}
+          <div className="flex items-center pt-0.5">
+            <div className="w-24 font-bold text-sm">Bill # :</div>
+            <div className="flex-1 border-2 border-black px-2 py-1 min-h-[28px] flex items-center justify-center font-black text-lg tracking-widest bg-slate-100">
+              {billNumber}
+            </div>
+          </div>
+
+        </div>
       </div>
 
-      <div className="text-[9px] leading-tight space-y-1 pb-1 font-sans px-1 text-center">
-        <p>Please bring this bill at collection.</p>
-        <p>Collect items within 30 days.</p>
-        {isVendorCopy && <p className="font-bold border-t border-black pt-1">VENDOR COPY - DO NOT GIVE TO CUSTOMER</p>}
+      {/* QR Code Section (Always printed with Vendor slip) */}
+      <div className="flex flex-col items-center justify-center py-2 border-t-2 border-dashed border-black">
+        <div className="text-xs font-black uppercase tracking-wider mb-1">SCAN WHEN READY</div>
+        <div className="p-1.5 bg-white border border-black rounded">
+          <QRCodeSVG value={payload.barcode || `WB-${billNumber}`} size={125} level="M" />
+        </div>
+        <div className="font-mono font-bold text-xs mt-1 tracking-wider">{payload.barcode || `WB-${billNumber}`}</div>
+        <div className="text-[10px] font-bold uppercase tracking-widest mt-0.5 text-slate-700">
+          VENDOR COPY · ATTACH TO LAUNDRY SACK
+        </div>
       </div>
+
     </div>
   );
 
   return (
-    <div className={`bg-white 
- w-full flex flex-col overflow-hidden mx-auto ${inline ? "h-full rounded-none shadow-none" : "rounded-xl shadow-xl max-h-[90vh] max-w-lg"}`}>
-      <div className="p-4 bg-slate-900 text-white flex justify-between items-center shrink-0">
-        <h3 className="font-bold">Generated Receipt</h3>
-        <button onClick={onClose} className="p-1 hover:bg-slate-700 rounded transition-colors text-slate-300">
-          <Check className="h-5 w-5" />
+    <div className={`bg-white w-full flex flex-col overflow-hidden mx-auto ${inline ? "h-full rounded-none shadow-none" : "rounded-xl shadow-xl max-h-[95vh] max-w-lg"}`}>
+      
+      {/* Header Bar */}
+      <div className="p-3.5 bg-slate-900 text-white flex justify-between items-center shrink-0">
+        <div className="flex items-center gap-2">
+          <ReceiptText className="w-5 h-5 text-blue-400" />
+          <h3 className="font-bold text-sm sm:text-base">Generated Receipt</h3>
+          <span className="text-[11px] bg-slate-800 text-blue-300 px-2 py-0.5 rounded font-mono border border-slate-700">
+            80mm / 3-inch Roll
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowTipsModal(!showTipsModal)}
+            title="Printer Tips & RawBT Watermark Removal"
+            className="p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition-colors"
+          >
+            <HelpCircle className="w-5 h-5" />
+          </button>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-800 rounded transition-colors text-slate-300">
+            <Check className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Preview Tab Selector */}
+      <div className="bg-slate-100 p-2 border-b border-slate-200 flex justify-center gap-2 shrink-0">
+        <button
+          onClick={() => setActivePreviewTab('customer')}
+          className={`flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+            activePreviewTab === 'customer'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+          }`}
+        >
+          <ReceiptText className="w-3.5 h-3.5" />
+          <span>Customer Receipt</span>
+        </button>
+        <button
+          onClick={() => setActivePreviewTab('vendor')}
+          className={`flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+            activePreviewTab === 'vendor'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+          }`}
+        >
+          <Tag className="w-3.5 h-3.5" />
+          <span>Vendor Tag ({hasIron ? 'Wash Dry Iron' : 'Wash Dry'})</span>
         </button>
       </div>
-      
-      {/* Hide scrollbar by using overflow-hidden or setting exact fits */}
-      <div className={`p-4 bg-gray-200 flex justify-center h-full ${inline ? "items-start overflow-auto" : "items-center overflow-auto min-h-[500px]"}`}>
-        {/* Scale Wrapper for Preview */}
-        <div className={`transform origin-top transition-transform ${inline ? "scale-[0.65] sm:scale-[0.75] md:scale-[0.85] lg:scale-100" : "scale-[0.75] md:scale-90 lg:scale-100 origin-top"} mx-auto flex justify-center`}>
-        {/* Receipt Container */}
-        
-        {/* Visible Preview (Customer Copy) */}
-        <div className="scale-90 md:scale-100 origin-top flex justify-center pb-8 shadow-2xl w-[300px]">
-           {renderReceipt(false)}
+
+      {/* Bluetooth Status Toast */}
+      {btStatus && (
+        <div className="bg-blue-50 border-b border-blue-200 px-3 py-1.5 text-xs text-blue-900 font-medium flex items-center justify-between">
+          <span>{btStatus}</span>
+          <button onClick={() => setBtStatus(null)} className="text-blue-500 font-bold ml-2">✕</button>
+        </div>
+      )}
+
+      {/* Help / RawBT Tips Accordion Banner */}
+      {showTipsModal && (
+        <div className="bg-amber-50 border-b border-amber-200 p-3 text-xs text-amber-950 space-y-1.5 shrink-0">
+          <div className="font-bold flex items-center gap-1 text-amber-900">
+            <HelpCircle className="w-4 h-4 text-amber-600" />
+            <span>How to remove RawBT app message & print full width:</span>
+          </div>
+          <ol className="list-decimal list-inside space-y-1 text-[11px] text-amber-900 leading-relaxed">
+            <li>
+              <strong>Remove RawBT Watermark:</strong> RawBT is a 3rd-party Android app. Open RawBT on your Android tablet → tap <strong>Menu (3 lines)</strong> → <strong>License</strong> → Buy License (one-time ~$3-$5 on Google Play) to permanently remove the trial text.
+            </li>
+            <li>
+              <strong>Free alternative without watermark:</strong> Install <strong>"Quick Printer (ESC/POS)"</strong> or <strong>"ESC POS Bluetooth Print Service"</strong> from Google Play, and choose it in Android print dialog.
+            </li>
+            <li>
+              <strong>Direct Bluetooth (No App Needed):</strong> Click the <strong>"Bluetooth Direct"</strong> button below to print directly from Chrome without RawBT!
+            </li>
+            <li>
+              <strong>Spread full width:</strong> In the Android print preview, make sure <strong>Paper Size</strong> is set to <strong>80mm</strong> (not ISO A4), and in RawBT set <strong>Paper width: 80mm (576 dots)</strong>.
+            </li>
+          </ol>
+        </div>
+      )}
+
+      {/* Interactive Preview Canvas */}
+      <div className={`p-4 bg-gray-200 flex justify-center h-full ${inline ? "items-start overflow-auto" : "items-center overflow-auto min-h-[460px]"}`}>
+        <div className="w-full max-w-[340px] shadow-2xl rounded-sm overflow-hidden bg-white">
+          {activePreviewTab === 'customer' ? renderCustomerReceipt() : renderVendorReceipt()}
         </div>
 
-        {/* Hidden Container for Actual Printing (1x Customer, 1x Vendor) */}
+        {/* Hidden Printable Nodes */}
+        <div id="customer-receipt-print" className="hidden">
+          <div className="receipt-page" style={{ width: '100%' }}>
+            {renderCustomerReceipt()}
+          </div>
+        </div>
+
+        <div id="vendor-receipt-print" className="hidden">
+          <div className="receipt-page" style={{ width: '100%' }}>
+            {renderVendorReceipt()}
+          </div>
+        </div>
+
         <div id="supervisor-receipt-print" className="hidden">
-           <div className="receipt-page" style={{ width: '100%', pageBreakAfter: 'always' }}>
-             {renderReceipt(false)}
-           </div>
-           <div className="receipt-page" style={{ width: '100%', pageBreakAfter: 'always' }}>
-             {renderReceipt(true)}
-           </div>
+          <div className="receipt-page" style={{ width: '100%', pageBreakAfter: 'always', breakAfter: 'page' }}>
+            {renderCustomerReceipt()}
+          </div>
+          <div className="receipt-page" style={{ width: '100%', pageBreakAfter: 'always', breakAfter: 'page' }}>
+            {renderVendorReceipt()}
+          </div>
         </div>
       </div>
+      
+      {/* Footer Controls */}
+      <div className="p-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-2 shrink-0">
+        <div className="text-[11px] text-slate-500 flex items-center gap-1.5 self-start sm:self-center">
+          <Scissors className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <span>Single copies trigger automatic printer paper cut</span>
+        </div>
+        
+        <div className="flex flex-wrap items-center justify-end gap-1.5 w-full sm:w-auto">
+          <button
+            onClick={onClose}
+            className="px-2.5 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
+          >
+            Close
+          </button>
+          
+          <button
+            onClick={handlePrintCustomer}
+            title="Prints Customer Copy and cuts paper"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-500 transition-colors"
+          >
+            <Printer className="h-3.5 w-3.5" />
+            <span>Customer (Cut)</span>
+          </button>
+          
+          <button
+            onClick={handlePrintVendor}
+            title="Prints Vendor Copy with QR code and cuts paper"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 rounded-lg shadow-sm hover:bg-emerald-500 transition-colors"
+          >
+            <Tag className="h-3.5 w-3.5" />
+            <span>Vendor Tag (Cut)</span>
+          </button>
+          
+          <button
+            onClick={handlePrintBoth}
+            title="Prints both Customer and Vendor copies"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-slate-800 rounded-lg shadow-sm hover:bg-slate-700 transition-colors"
+          >
+            <Printer className="h-3.5 w-3.5" />
+            <span>Print Both</span>
+          </button>
+
+          {isWebBluetoothSupported() && (
+            <button
+              onClick={() => handleBluetoothPrint(activePreviewTab === 'vendor')}
+              title="Prints directly to Bluetooth printer with NO RawBT app watermark"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg shadow-sm hover:bg-indigo-100 transition-colors"
+            >
+              <Bluetooth className="h-3.5 w-3.5 text-indigo-600" />
+              <span>Direct BT</span>
+            </button>
+          )}
+        </div>
       </div>
-      <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3 shrink-0">
-        <button
-          onClick={onClose}
-          className="px-5 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50"
-        >
-          Close
-        </button>
-        <button
-          onClick={handlePrint}
-          className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-500"
-        >
-          <Printer className="h-4 w-4" />
-          Print Receipt
-        </button>
-      </div>
+
     </div>
   );
 }
+
