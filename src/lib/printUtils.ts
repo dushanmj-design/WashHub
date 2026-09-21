@@ -42,15 +42,20 @@ export function printHtml(htmlContent: string, title: string) {
             margin: 0mm !important; 
             size: 80mm auto !important;
           }
+          * {
+            box-sizing: border-box !important;
+          }
           html, body { 
             background: white !important; 
             color: black !important;
-            margin: 0 !important;
+            margin: 0 !important; 
             padding: 0 !important;
             width: 100% !important;
             min-width: 100% !important;
             font-family: Arial, Helvetica, sans-serif !important;
             display: block !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           @media print {
             @page {
@@ -58,27 +63,31 @@ export function printHtml(htmlContent: string, title: string) {
               margin: 0mm !important;
             }
             html, body {
-              width: 100% !important;
-              max-width: 100% !important;
-              min-width: 100% !important;
-              margin: 0 !important;
+              width: 76mm !important;
+              max-width: 76mm !important;
+              min-width: 76mm !important;
+              margin: 0 auto !important;
               padding: 0 !important;
+              color: #000000 !important;
+              background: #ffffff !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
             .receipt-page { 
-              width: 100% !important;
-              min-width: 100% !important;
-              max-width: 100% !important;
+              width: 76mm !important;
+              min-width: 76mm !important;
+              max-width: 76mm !important;
               padding: 0 !important;
-              margin: 0 !important;
+              margin: 0 auto !important;
               page-break-after: always;
               break-after: page;
             }
             .receipt-content-wrapper { 
-              width: 100% !important;
-              min-width: 100% !important;
-              max-width: 100% !important;
+              width: 76mm !important;
+              min-width: 76mm !important;
+              max-width: 76mm !important;
               margin: 0 auto !important;
-              padding: 1.5mm 1mm !important;
+              padding: 1.5mm 1.5mm !important;
               box-sizing: border-box !important;
             }
             .receipt-content-wrapper * {
@@ -92,14 +101,14 @@ export function printHtml(htmlContent: string, title: string) {
               flex-direction: column;
               align-items: center;
               background: #f1f5f9 !important;
-              padding: 10px 0;
+              padding: 12px 0;
             }
             .receipt-content-wrapper {
               width: 100% !important;
               max-width: 380px !important;
               background: #ffffff !important;
-              box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-              padding: 12px !important;
+              box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+              padding: 14px !important;
               margin-bottom: 20px;
             }
           }

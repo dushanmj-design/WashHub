@@ -137,61 +137,67 @@ export function buildEscPosPayload(data: EscPosReceiptData): Uint8Array {
   // 2. Header (Center, Double Size)
   chunks.push(0x1B, 0x61, 0x01); // Center
   chunks.push(0x1D, 0x21, 0x11); // Double width + double height
-  writeText(`${data.shopName || 'WASH HUB'}\n`);
-
-  chunks.push(0x1D, 0x21, 0x00); // Normal
   chunks.push(0x1B, 0x45, 0x01); // Bold ON
+  writeText(`${data.shopName || 'WASH HUB'}\n`);
+  chunks.push(0x1D, 0x21, 0x00); // Normal size
+  chunks.push(0x1B, 0x45, 0x00); // Bold OFF
+
+  writeText(`We do your laundry right - all day every day\n`);
+  writeText(`101/C, Galle Road, Mount Lavinia.\n`);
   writeText(`Tel: ${data.phone || '011 3041630, 011 2735490'}\n`);
   
   if (data.isVendorCopy) {
-    writeText(`★ VENDOR / WORKSHOP TAG ★\n`);
+    chunks.push(0x1B, 0x45, 0x01); // Bold ON
+    writeText(`\n[ VENDOR COPY / WORKSHOP TAG ]\n`);
     writeText(`(${data.hasIron ? 'WASH . DRY . IRON' : 'WASH . DRY'})\n`);
+    chunks.push(0x1B, 0x45, 0x00); // Bold OFF
   } else {
-    writeText(`CUSTOMER RECEIPT\n`);
+    chunks.push(0x1B, 0x45, 0x01); // Bold ON
+    writeText(`\nCUSTOMER RECEIPT\n`);
+    chunks.push(0x1B, 0x45, 0x00); // Bold OFF
   }
-  chunks.push(0x1B, 0x45, 0x00); // Bold OFF
 
   writeText(`================================================\n`);
 
   // 3. Bill & Metadata
   chunks.push(0x1B, 0x61, 0x00); // Left align
-  chunks.push(0x1B, 0x45, 0x01);
-  writeText(`BILL NO  : ${data.billNumber}\n`);
-  writeText(`DATE     : ${data.date}\n`);
-  writeText(`CUSTOMER : ${data.customerName}\n`);
-  writeText(`PHONE    : ${data.customerPhone}\n`);
-  chunks.push(0x1B, 0x45, 0x00);
+  chunks.push(0x1B, 0x45, 0x01); // Bold ON
+  writeText(`BILL #        : ${data.billNumber}\n`);
+  writeText(`CUSTOMER NAME : ${data.customerName}\n`);
+  writeText(`CONTACT #     : ${data.customerPhone}\n`);
+  writeText(`DATE          : ${data.date}\n`);
+  writeText(`WEIGHT        : Kg ${data.weight}${data.pieces ? ` (${data.pieces} pcs)` : ''}\n`);
+  chunks.push(0x1B, 0x45, 0x00); // Bold OFF
 
   writeText(`------------------------------------------------\n`);
 
   if (data.isVendorCopy) {
     // VENDOR TAG (Matches Card Format with clear box borders)
-    writeText(`[+] WORKSHOP PROCESSING CARD:\n`);
     writeText(`+--------------------+-------------------------+\n`);
-    writeText(`| WASH               | ${padRight(data.washAmount ? `[  ] Rs. ${data.washAmount}` : '[  ] Done', 23)} |\n`);
+    writeText(`| Wash :             | ${padRight(data.washAmount ? `[x] Rs. ${data.washAmount}` : '[x] Included', 23)} |\n`);
     writeText(`+--------------------+-------------------------+\n`);
-    writeText(`| DRY                | ${padRight(data.dryAmount ? `[  ] Rs. ${data.dryAmount}` : '[  ] Done', 23)} |\n`);
+    writeText(`| Dry :              | ${padRight(data.dryAmount ? `[x] Rs. ${data.dryAmount}` : '[x] Included', 23)} |\n`);
     writeText(`+--------------------+-------------------------+\n`);
     if (data.hasIron) {
-      writeText(`| IRON               | ${padRight(data.ironAmount ? `[  ] Rs. ${data.ironAmount}` : '[  ] Done', 23)} |\n`);
+      writeText(`| Iron :             | ${padRight(data.ironAmount ? `[x] Rs. ${data.ironAmount}` : '[x] Included', 23)} |\n`);
       writeText(`+--------------------+-------------------------+\n`);
     }
-    writeText(`| AMOUNT             | ${padRight(`Rs. ${data.totalAmount}`, 23)} |\n`);
+    writeText(`| Amount :           | ${padRight(`Rs. ${data.totalAmount}`, 23)} |\n`);
     writeText(`+--------------------+-------------------------+\n`);
-    writeText(`| IN DATE            | ${padRight(data.date, 23)} |\n`);
+    writeText(`| In date :          | ${padRight(data.date, 23)} |\n`);
     writeText(`+--------------------+-------------------------+\n`);
-    writeText(`| NAME               | ${padRight(data.customerName, 23)} |\n`);
+    writeText(`| Name :             | ${padRight(data.customerName, 23)} |\n`);
     writeText(`+--------------------+-------------------------+\n`);
-    writeText(`| WEIGHT             | ${padRight(data.weight, 23)} |\n`);
+    writeText(`| Weight :           | ${padRight(`Kg ${data.weight}`, 23)} |\n`);
     writeText(`+--------------------+-------------------------+\n`);
-    writeText(`| BILL #             | ${padRight(data.billNumber, 23)} |\n`);
+    writeText(`| Bill # :           | ${padRight(data.billNumber, 23)} |\n`);
     writeText(`+--------------------+-------------------------+\n\n`);
 
     // QR Code Section
     chunks.push(0x1B, 0x61, 0x01); // Center
-    chunks.push(0x1B, 0x45, 0x01);
+    chunks.push(0x1B, 0x45, 0x01); // Bold ON
     writeText(`SCAN WHEN READY\n`);
-    chunks.push(0x1B, 0x45, 0x00);
+    chunks.push(0x1B, 0x45, 0x00); // Bold OFF
 
     // ESC/POS Native QR Code (Model 2, size 7)
     const qrBytes = encoder.encode(data.barcode);
@@ -201,8 +207,8 @@ export function buildEscPosPayload(data: EscPosReceiptData): Uint8Array {
 
     // Model 2
     chunks.push(0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00);
-    // Size 6
-    chunks.push(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x06);
+    // Size 7
+    chunks.push(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x07);
     // Error correction L (48)
     chunks.push(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x30);
     // Store data
@@ -211,20 +217,37 @@ export function buildEscPosPayload(data: EscPosReceiptData): Uint8Array {
     // Print QR
     chunks.push(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30);
 
+    chunks.push(0x1B, 0x45, 0x01);
     writeText(`\n* ${data.barcode} *\n`);
-    writeText(`ATTACH TO LAUNDRY BAG\n`);
+    writeText(`VENDOR COPY . ATTACH TO LAUNDRY SACK\n`);
+    chunks.push(0x1B, 0x45, 0x00);
   } else {
-    // Customer Receipt Detail
-    writeText(`WEIGHT   : ${data.weight}\n`);
-    if (data.pieces) writeText(`PIECES   : ${data.pieces}\n`);
+    // Customer Receipt Detail matching original bill
+    writeText(`SERVICES & CHARGES:\n`);
+    writeText(`  Wash               : Rs. ${data.washAmount ? data.washAmount : 'Included'}\n`);
+    writeText(`  Dry                : Rs. ${data.dryAmount ? data.dryAmount : 'Included'}\n`);
+    if (data.hasIron) {
+      writeText(`  Iron               : Rs. ${data.ironAmount ? data.ironAmount : 'Included'}\n`);
+    }
     writeText(`------------------------------------------------\n`);
-    writeText(`TOTAL    : Rs. ${data.totalAmount}\n`);
-    if (data.advanceAmount) writeText(`ADVANCE  : Rs. ${data.advanceAmount}\n`);
-    if (data.balanceAmount) writeText(`BALANCE  : Rs. ${data.balanceAmount}\n`);
+    chunks.push(0x1B, 0x45, 0x01); // Bold ON
+    writeText(`TOTAL AMOUNT         : Rs. ${data.totalAmount}\n`);
+    if (data.advanceAmount && data.advanceAmount !== '0.00') {
+      writeText(`ADVANCE PAID         : Rs. ${data.advanceAmount}\n`);
+    }
+    if (data.balanceAmount) {
+      writeText(`BALANCE TO BE PAID   : Rs. ${data.balanceAmount}\n`);
+    }
+    chunks.push(0x1B, 0x45, 0x00); // Bold OFF
     writeText(`================================================\n`);
     chunks.push(0x1B, 0x61, 0x01); // Center
-    writeText(`Please bring this bill at collection.\n`);
-    writeText(`Collect items within 30 days.\n`);
+    chunks.push(0x1B, 0x45, 0x01);
+    writeText(`Open 7.30 am. to 7.30 pm. 365 Days\n`);
+    chunks.push(0x1B, 0x45, 0x00);
+    chunks.push(0x1B, 0x61, 0x00); // Left align
+    writeText(`- Please provide your bill at collection\n`);
+    writeText(`- Collect all items before 30 days from billing\n`);
+    writeText(`- Check care labels before washing & drying\n`);
   }
 
   // Feed 4 lines & Auto Paper Cut
