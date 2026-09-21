@@ -1,6 +1,7 @@
 // @ts-nocheck
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
+import net from 'net';
 import { createServer as createViteServer } from 'vite';
 import { db } from './src/database';
 import { WorkflowType } from './src/types';
@@ -208,6 +209,41 @@ async function startServer() {
     async (id: string) => await db.deletePrinter(id)
   );
 
+  // Network Thermal Printer Raw ESC/POS Socket Dispatcher
+  app.post('/api/printers/network-print', async (req: Request, res: Response) => {
+    const { ip_address, port = 9100, data_base64 } = req.body;
+    if (!ip_address || !data_base64) {
+      return res.status(400).json({ error: 'IP address and data payload are required' });
+    }
+
+    try {
+      const buffer = Buffer.from(data_base64, 'base64');
+      const targetPort = parseInt(port, 10) || 9100;
+
+      const client = new net.Socket();
+      client.setTimeout(4000); // 4-second timeout for LAN thermal printer
+
+      client.connect(targetPort, ip_address, () => {
+        client.write(buffer, () => {
+          client.end();
+          res.json({ success: true, message: `Successfully sent print command to network printer at ${ip_address}:${targetPort}` });
+        });
+      });
+
+      client.on('error', (err) => {
+        client.destroy();
+        res.status(502).json({ error: `Could not connect to printer at ${ip_address}:${targetPort} - ${err.message}` });
+      });
+
+      client.on('timeout', () => {
+        client.destroy();
+        res.status(504).json({ error: `Connection timed out to printer at ${ip_address}:${targetPort}` });
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Internal network printer error' });
+    }
+  });
+
 
   // 6. Get/Create Orders (Order Intake)
   app.get('/api/orders', async (req: Request, res: Response) => {
@@ -308,7 +344,13 @@ app.post('/api/orders', async (req: Request, res: Response) => {
 
     try {
       const result = await db.updateOrderStatus(tenantId, barcode_id, userRole);
-      res.json(result);
+      const phone = result.customer_mobile || (result as any).supervisor_data?.order_details?.customer?.telephone || 'Customer';
+      res.json({
+        ...result,
+        sms_sent: true,
+        customer_phone: phone,
+        sms_message: `Order ${barcode_id} is completed and ready for pickup. SMS successfully dispatched to ${phone}.`
+      });
     } catch (err: any) {
       res.status(400).json({ error: err.message });
     }

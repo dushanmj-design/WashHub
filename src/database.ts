@@ -168,7 +168,7 @@ class Database {
       estimated_amount: payload.billing.total_amount, 
       final_amount: payload.billing.total_amount,
       is_discrepancy_flagged: false, 
-      status: payload.status || 'completed', 
+      status: payload.status || 'pending', 
       created_at: new Date().toISOString(), 
       updated_at: new Date().toISOString(),
       supervisor_data: payload // Storing the full manual payload

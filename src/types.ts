@@ -1,5 +1,5 @@
 export type UserRole = 'super_admin' | 'admin' | 'supervisor' | 'user';
-export type OrderStatus = 'wash' | 'dry' | 'iron' | 'completed' | 'delivered';
+export type OrderStatus = 'pending' | 'wash' | 'dry' | 'iron' | 'completed' | 'delivered';
 export type WorkflowType = 'wash_dry_iron' | 'wash_dry';
 export type TransactionType = 'IN' | 'OUT';
 

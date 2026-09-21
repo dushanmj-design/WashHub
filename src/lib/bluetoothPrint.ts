@@ -6,7 +6,7 @@ export function isWebBluetoothSupported(): boolean {
   return typeof navigator !== 'undefined' && 'bluetooth' in navigator;
 }
 
-interface EscPosReceiptData {
+export interface EscPosReceiptData {
   shopName: string;
   phone: string;
   billNumber: string;
@@ -104,7 +104,7 @@ export async function printDirectBluetooth(data: EscPosReceiptData): Promise<{ s
   }
 }
 
-function buildEscPosPayload(data: EscPosReceiptData): Uint8Array {
+export function buildEscPosPayload(data: EscPosReceiptData): Uint8Array {
   const chunks: number[] = [];
 
   const encoder = new TextEncoder();

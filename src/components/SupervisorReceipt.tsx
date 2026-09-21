@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { Printer, Check, Scissors, HelpCircle, Bluetooth, Tag, ReceiptText } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Printer, Check, Scissors, HelpCircle, Bluetooth, Tag, ReceiptText, Wifi } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { printHtml } from '../lib/printUtils';
-import { printDirectBluetooth, isWebBluetoothSupported } from '../lib/bluetoothPrint';
+import { printDirectBluetooth, isWebBluetoothSupported, buildEscPosPayload } from '../lib/bluetoothPrint';
+import { getSavedNetworkPrinter, sendEscPosToNetworkPrinter, NetworkPrinterConfig } from '../lib/networkPrint';
+import NetworkPrinterModal from './NetworkPrinterModal';
 
 interface SupervisorReceiptProps {
   payload: any;
@@ -13,7 +15,15 @@ interface SupervisorReceiptProps {
 export default function SupervisorReceipt({ payload, onClose, inline }: SupervisorReceiptProps) {
   const [activePreviewTab, setActivePreviewTab] = useState<'customer' | 'vendor'>('customer');
   const [showTipsModal, setShowTipsModal] = useState(false);
+  const [showNetworkModal, setShowNetworkModal] = useState(false);
+  const [networkPrinter, setNetworkPrinter] = useState<NetworkPrinterConfig | null>(null);
   const [btStatus, setBtStatus] = useState<string | null>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  useEffect(() => {
+    const saved = getSavedNetworkPrinter();
+    if (saved) setNetworkPrinter(saved);
+  }, []);
 
   if (!payload || !payload.supervisor_data) return null;
   
@@ -40,43 +50,128 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
   const advanceDisplay = orderDetails.billing?.advance ? orderDetails.billing.advance.toFixed(2) : '0.00';
   const balanceDisplay = orderDetails.billing?.balance ? orderDetails.billing.balance.toFixed(2) : totalDisplay;
 
+  // Build ESC/POS Payload data object
+  const getEscPosData = (forVendor: boolean) => ({
+    shopName: 'WASH HUB',
+    phone: shopPhone,
+    billNumber,
+    isVendorCopy: forVendor,
+    hasIron,
+    date: inDate,
+    customerName,
+    customerPhone,
+    weight: weightDisplay,
+    pieces: qtyDisplay,
+    washAmount: orderDetails.billing?.wash_amount,
+    dryAmount: orderDetails.billing?.dry_amount,
+    ironAmount: orderDetails.billing?.iron_amount,
+    totalAmount: totalDisplay,
+    advanceAmount: advanceDisplay,
+    balanceAmount: balanceDisplay,
+    barcode: payload.barcode || `WB-${billNumber}`
+  });
+
+  // Direct Network (LAN/Wi-Fi TCP) Print Handler
+  const handleNetworkPrint = async (forVendor: boolean) => {
+    if (!networkPrinter || !networkPrinter.ip_address) {
+      setShowNetworkModal(true);
+      return;
+    }
+
+    setIsPrinting(true);
+    setBtStatus(`Sending ${forVendor ? 'Vendor' : 'Customer'} slip to ${networkPrinter.ip_address}...`);
+
+    try {
+      const escPosData = getEscPosData(forVendor);
+      const rawBytes = buildEscPosPayload(escPosData);
+      const res = await sendEscPosToNetworkPrinter(
+        networkPrinter.ip_address,
+        networkPrinter.port || 9100,
+        rawBytes
+      );
+
+      if (res.success) {
+        setBtStatus(`✓ Network print dispatched to ${networkPrinter.ip_address}!`);
+        setTimeout(() => setBtStatus(null), 4000);
+      } else {
+        setBtStatus(`Notice: ${res.message}`);
+        setTimeout(() => setBtStatus(null), 6000);
+      }
+    } catch (err: any) {
+      setBtStatus(`Print failed: ${err.message}`);
+      setTimeout(() => setBtStatus(null), 6000);
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  const handleNetworkPrintBoth = async () => {
+    if (!networkPrinter || !networkPrinter.ip_address) {
+      setShowNetworkModal(true);
+      return;
+    }
+    setIsPrinting(true);
+    setBtStatus(`Sending Customer & Vendor slips to ${networkPrinter.ip_address}...`);
+
+    try {
+      const customerBytes = buildEscPosPayload(getEscPosData(false));
+      const vendorBytes = buildEscPosPayload(getEscPosData(true));
+      const merged = new Uint8Array(customerBytes.length + vendorBytes.length);
+      merged.set(customerBytes, 0);
+      merged.set(vendorBytes, customerBytes.length);
+
+      const res = await sendEscPosToNetworkPrinter(
+        networkPrinter.ip_address,
+        networkPrinter.port || 9100,
+        merged
+      );
+
+      if (res.success) {
+        setBtStatus(`✓ Both slips dispatched to network printer!`);
+        setTimeout(() => setBtStatus(null), 4000);
+      } else {
+        setBtStatus(`Notice: ${res.message}`);
+        setTimeout(() => setBtStatus(null), 6000);
+      }
+    } catch (err: any) {
+      setBtStatus(`Print failed: ${err.message}`);
+      setTimeout(() => setBtStatus(null), 6000);
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
   // Print Handlers
   const handlePrintBoth = () => {
+    if (networkPrinter?.ip_address) {
+      handleNetworkPrintBoth();
+      return;
+    }
     const el = document.getElementById('supervisor-receipt-print');
     if (el) printHtml(el.innerHTML, `Receipt - Bill #${billNumber}`);
   };
 
   const handlePrintCustomer = () => {
+    if (networkPrinter?.ip_address) {
+      handleNetworkPrint(false);
+      return;
+    }
     const el = document.getElementById('customer-receipt-print');
     if (el) printHtml(el.innerHTML, `Customer Receipt #${billNumber}`);
   };
 
   const handlePrintVendor = () => {
+    if (networkPrinter?.ip_address) {
+      handleNetworkPrint(true);
+      return;
+    }
     const el = document.getElementById('vendor-receipt-print');
     if (el) printHtml(el.innerHTML, `Vendor Tag #${billNumber}`);
   };
 
   const handleBluetoothPrint = async (forVendor: boolean) => {
     setBtStatus('Searching for Bluetooth printer...');
-    const res = await printDirectBluetooth({
-      shopName: 'WASH HUB',
-      phone: shopPhone,
-      billNumber,
-      isVendorCopy: forVendor,
-      hasIron,
-      date: inDate,
-      customerName,
-      customerPhone,
-      weight: weightDisplay,
-      pieces: qtyDisplay,
-      washAmount: orderDetails.billing?.wash_amount,
-      dryAmount: orderDetails.billing?.dry_amount,
-      ironAmount: orderDetails.billing?.iron_amount,
-      totalAmount: totalDisplay,
-      advanceAmount: advanceDisplay,
-      balanceAmount: balanceDisplay,
-      barcode: payload.barcode || `WB-${billNumber}`
-    });
+    const res = await printDirectBluetooth(getEscPosData(forVendor));
 
     if (res.success) {
       setBtStatus('✓ Printed directly via Bluetooth without watermark!');
@@ -303,7 +398,23 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
             80mm / 3-inch Roll
           </span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
+          {/* Network Printer Status Button */}
+          <button
+            onClick={() => setShowNetworkModal(true)}
+            title={networkPrinter ? `Network printer: ${networkPrinter.ip_address}:${networkPrinter.port || 9100}` : 'Configure Network Printer (IP/Port)'}
+            className={`flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-lg border transition ${
+              networkPrinter?.ip_address
+                ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300 hover:bg-emerald-900'
+                : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-750'
+            }`}
+          >
+            <Wifi className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline font-mono">
+              {networkPrinter?.ip_address ? networkPrinter.ip_address : 'Network Printer'}
+            </span>
+          </button>
+
           <button
             onClick={() => setShowTipsModal(!showTipsModal)}
             title="Printer Tips & RawBT Watermark Removal"
@@ -458,6 +569,13 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
           )}
         </div>
       </div>
+
+      {/* Network Printer Configuration Modal */}
+      <NetworkPrinterModal
+        isOpen={showNetworkModal}
+        onClose={() => setShowNetworkModal(false)}
+        onPrinterConfigured={(cfg) => setNetworkPrinter(cfg)}
+      />
 
     </div>
   );

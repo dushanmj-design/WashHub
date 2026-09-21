@@ -58,6 +58,7 @@ export default function BarcodeScanner({ orders, onScanBarcode, isLoading }: Bar
   };
 
   const statusLabelMap: Record<OrderStatus, string> = {
+    pending: 'Intake (In-Progress)',
     wash: 'Wash',
     dry: 'Dry',
     iron: 'Iron',

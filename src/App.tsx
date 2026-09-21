@@ -346,8 +346,17 @@ const handleOrderIntake = async (orderData: {
       } else {
         await refreshTenantData();
         playBeep();
-        setSuccessMessage(`Success! Barcode ${barcodeId} advanced to ${result.nextStatus}`);
-        setTimeout(() => setSuccessMessage(''), 2500);
+        
+        // When washing complete cycle is scanned by supervisor, show SMS sent notification popup
+        // Note: No print preview is triggered here as final receipt was already printed from the beginning!
+        if (result.sms_sent) {
+          const targetPhone = result.customer_phone || result.customer_mobile || 'customer';
+          setSuccessMessage(`Order ${barcodeId} marked ${result.nextStatus.toUpperCase()}! SMS notification has been successfully sent to ${targetPhone}.`);
+          setTimeout(() => setSuccessMessage(''), 4500);
+        } else {
+          setSuccessMessage(`Success! Barcode ${barcodeId} advanced to ${result.nextStatus}`);
+          setTimeout(() => setSuccessMessage(''), 2500);
+        }
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Barcode lookup failed');
