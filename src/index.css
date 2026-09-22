@@ -53,8 +53,8 @@
 @media print {
   .receipt-cutter-spacer {
     display: block !important;
-    height: 22mm !important;
-    min-height: 22mm !important;
+    height: 6mm !important;
+    min-height: 6mm !important;
     width: 100% !important;
     clear: both !important;
   }

@@ -100,11 +100,11 @@ export function printHtml(htmlContent: string, title: string) {
               padding: 1.5mm 1.5mm 0 1.5mm !important;
               box-sizing: border-box !important;
             }
-            /* Feeds 22mm blank paper past thermal head so the auto cutter knife cuts safely on empty paper */
+            /* Feeds 6mm blank paper past thermal head so the auto cutter knife cuts cleanly without wasting space or splitting pages */
             .receipt-cutter-spacer {
               display: block !important;
-              height: 22mm !important;
-              min-height: 22mm !important;
+              height: 6mm !important;
+              min-height: 6mm !important;
               width: 100% !important;
               clear: both !important;
             }

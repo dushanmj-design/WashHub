@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Waves, Wind, Flame, ShieldCheck, Shirt, Blinds, Bed, Package, Layers, Tag, Lock, Check } from 'lucide-react';
 
 interface SupervisorIntakeProps {
   onSubmit: (payload: any) => void;
@@ -27,7 +28,8 @@ export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: S
   
   const [deliveryDate, setDeliveryDate] = useState('');
   
-  const [services, setServices] = useState({ wash: true, dry: true, iron: true, dc: true });
+  // Default with wash & dry selected, iron & dc unselected
+  const [services, setServices] = useState({ wash: true, dry: true, iron: false, dc: false });
   const [category, setCategory] = useState<string[]>(['Cloths']);
 
   const toggleCategory = (cat: string) => {
@@ -42,6 +44,7 @@ export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: S
   const [washAmount, setWashAmount] = useState('');
   const [dryAmount, setDryAmount] = useState('');
   const [ironAmount, setIronAmount] = useState('');
+  const [dcAmount, setDcAmount] = useState('');
   const [advance, setAdvance] = useState('');
 
   useEffect(() => {
@@ -55,7 +58,12 @@ export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: S
     return () => clearInterval(timer);
   }, []);
 
-  const totalAmount = (parseFloat(washAmount) || 0) + (parseFloat(dryAmount) || 0) + (parseFloat(ironAmount) || 0);
+  const totalAmount = 
+    (services.wash ? (parseFloat(washAmount) || 0) : 0) + 
+    (services.dry ? (parseFloat(dryAmount) || 0) : 0) + 
+    (services.iron ? (parseFloat(ironAmount) || 0) : 0) +
+    (services.dc ? (parseFloat(dcAmount) || 0) : 0);
+
   const balance = Math.max(0, totalAmount - (parseFloat(advance) || 0));
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -70,12 +78,13 @@ export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: S
           weight_kg: parseFloat(weight) || 0,
           quantity: parseInt(quantity) || 0,
           packaging,
-          hanger_given_qty: parseInt(hangerQty) || 0
+          hanger_given_qty: packaging === 'hanger' ? (parseInt(hangerQty) || 0) : 0
         },
         billing: {
-          wash_amount: parseFloat(washAmount) || 0,
-          dry_amount: parseFloat(dryAmount) || 0,
-          iron_amount: parseFloat(ironAmount) || 0,
+          wash_amount: services.wash ? (parseFloat(washAmount) || 0) : 0,
+          dry_amount: services.dry ? (parseFloat(dryAmount) || 0) : 0,
+          iron_amount: services.iron ? (parseFloat(ironAmount) || 0) : 0,
+          dc_amount: services.dc ? (parseFloat(dcAmount) || 0) : 0,
           total_amount: totalAmount,
           advance: parseFloat(advance) || 0,
           balance: balance
@@ -86,7 +95,19 @@ export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: S
     onSubmit(payload);
   };
 
-  const toggleService = (key: keyof typeof services) => setServices(s => ({ ...s, [key]: !s[key] }));
+  const toggleService = (key: keyof typeof services) => {
+    setServices(prev => {
+      const nextVal = !prev[key];
+      // Freeze and clear the amount when deselected
+      if (!nextVal) {
+        if (key === 'wash') setWashAmount('');
+        if (key === 'dry') setDryAmount('');
+        if (key === 'iron') setIronAmount('');
+        if (key === 'dc') setDcAmount('');
+      }
+      return { ...prev, [key]: nextVal };
+    });
+  };
 
   return (
     <form onSubmit={handleFormSubmit} className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden w-full flex flex-col lg:flex-row text-slate-800 font-sans">
@@ -140,22 +161,140 @@ export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: S
           
           {/* Services */}
           <section>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <button type="button" onClick={() => toggleService('wash')} className={`py-2 rounded-lg border-2 font-bold text-lg tracking-wider transition-all ${services.wash ? 'bg-[#fde047] border-[#eab308] text-[#713f12] shadow-sm' : 'bg-[#fef08a] border-[#fde047] text-[#a16207] opacity-60'}`}>WASH</button>
-              <button type="button" onClick={() => toggleService('dry')} className={`py-2 rounded-lg border-2 font-bold text-lg tracking-wider transition-all ${services.dry ? 'bg-[#86efac] border-[#22c55e] text-[#14532d] shadow-sm' : 'bg-[#bbf7d0] border-[#86efac] text-[#166534] opacity-60'}`}>DRY</button>
-              <button type="button" onClick={() => toggleService('iron')} className={`py-2 rounded-lg border-2 font-bold text-lg tracking-wider transition-all ${services.iron ? 'bg-[#93c5fd] border-[#3b82f6] text-[#1e3a8a] shadow-sm' : 'bg-[#bfdbfe] border-[#93c5fd] text-[#1e40af] opacity-60'}`}>IRON</button>
-              <button type="button" onClick={() => toggleService('dc')} className={`py-2 rounded-lg border-2 font-bold text-lg tracking-wider transition-all ${services.dc ? 'bg-[#f9a8d4] border-[#ec4899] text-[#831843] shadow-sm' : 'bg-[#fbcfe8] border-[#f9a8d4] text-[#9d174d] opacity-60'}`}>D/C</button>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {/* WASH */}
+              <button
+                type="button"
+                onClick={() => toggleService('wash')}
+                className={`relative py-3 px-3 rounded-xl border-2 font-bold text-base tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  services.wash 
+                    ? 'bg-[#fef08a] border-[#eab308] text-[#713f12] shadow-sm ring-2 ring-yellow-400/40' 
+                    : 'bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200/70'
+                }`}
+              >
+                <Waves className={`w-5 h-5 ${services.wash ? 'text-[#a16207]' : 'text-slate-400'}`} />
+                <span>WASH</span>
+                {services.wash && (
+                  <span className="absolute top-1 right-1.5 w-4 h-4 bg-[#eab308] text-white rounded-full flex items-center justify-center">
+                    <Check className="w-2.5 h-2.5 stroke-[3]" />
+                  </span>
+                )}
+              </button>
+
+              {/* DRY */}
+              <button
+                type="button"
+                onClick={() => toggleService('dry')}
+                className={`relative py-3 px-3 rounded-xl border-2 font-bold text-base tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  services.dry 
+                    ? 'bg-[#bbf7d0] border-[#22c55e] text-[#14532d] shadow-sm ring-2 ring-emerald-400/40' 
+                    : 'bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200/70'
+                }`}
+              >
+                <Wind className={`w-5 h-5 ${services.dry ? 'text-[#166534]' : 'text-slate-400'}`} />
+                <span>DRY</span>
+                {services.dry && (
+                  <span className="absolute top-1 right-1.5 w-4 h-4 bg-[#22c55e] text-white rounded-full flex items-center justify-center">
+                    <Check className="w-2.5 h-2.5 stroke-[3]" />
+                  </span>
+                )}
+              </button>
+
+              {/* IRON */}
+              <button
+                type="button"
+                onClick={() => toggleService('iron')}
+                className={`relative py-3 px-3 rounded-xl border-2 font-bold text-base tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  services.iron 
+                    ? 'bg-[#bfdbfe] border-[#3b82f6] text-[#1e3a8a] shadow-sm ring-2 ring-blue-400/40' 
+                    : 'bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200/70'
+                }`}
+              >
+                <Flame className={`w-5 h-5 ${services.iron ? 'text-[#1d4ed8]' : 'text-slate-400'}`} />
+                <span>IRON</span>
+                {services.iron && (
+                  <span className="absolute top-1 right-1.5 w-4 h-4 bg-[#3b82f6] text-white rounded-full flex items-center justify-center">
+                    <Check className="w-2.5 h-2.5 stroke-[3]" />
+                  </span>
+                )}
+              </button>
+
+              {/* D/C */}
+              <button
+                type="button"
+                onClick={() => toggleService('dc')}
+                className={`relative py-3 px-3 rounded-xl border-2 font-bold text-base tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  services.dc 
+                    ? 'bg-[#fbcfe8] border-[#ec4899] text-[#831843] shadow-sm ring-2 ring-pink-400/40' 
+                    : 'bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200/70'
+                }`}
+              >
+                <ShieldCheck className={`w-5 h-5 ${services.dc ? 'text-[#be185d]' : 'text-slate-400'}`} />
+                <span>D/C</span>
+                {services.dc && (
+                  <span className="absolute top-1 right-1.5 w-4 h-4 bg-[#ec4899] text-white rounded-full flex items-center justify-center">
+                    <Check className="w-2.5 h-2.5 stroke-[3]" />
+                  </span>
+                )}
+              </button>
             </div>
           </section>
 
           {/* Categories */}
           <section>
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Item Category</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <button type="button" onClick={() => toggleCategory('Cloths')} className={`py-2 rounded border text-sm font-semibold transition-all ${category.includes('Cloths') ? 'bg-blue-600 border-blue-700 text-white shadow-md ring-2 ring-blue-500 ring-offset-2' : 'bg-blue-100 border-blue-300 text-blue-800 hover:bg-blue-200'}`}>Cloths</button>
-              <button type="button" onClick={() => toggleCategory('Curtain')} className={`py-2 rounded border text-sm font-semibold transition-all ${category.includes('Curtain') ? 'bg-teal-600 border-teal-700 text-white shadow-md ring-2 ring-teal-500 ring-offset-2' : 'bg-teal-100 border-teal-300 text-teal-800 hover:bg-teal-200'}`}>Curtain</button>
-              <button type="button" onClick={() => toggleCategory('Bed Sheets')} className={`py-2 rounded border text-sm font-semibold transition-all ${category.includes('Bed Sheets') ? 'bg-purple-600 border-purple-700 text-white shadow-md ring-2 ring-purple-500 ring-offset-2' : 'bg-purple-100 border-purple-300 text-purple-800 hover:bg-purple-200'}`}>Bed Sheets</button>
-              <button type="button" onClick={() => toggleCategory('Others')} className={`py-2 rounded border text-sm font-semibold transition-all ${category.includes('Others') ? 'bg-slate-700 border-slate-800 text-white shadow-md ring-2 ring-slate-500 ring-offset-2' : 'bg-slate-200 border-slate-300 text-slate-800 hover:bg-slate-300'}`}>Others</button>
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Item Category</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <button 
+                type="button" 
+                onClick={() => toggleCategory('Cloths')} 
+                className={`py-2 px-3 rounded-lg border text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  category.includes('Cloths') 
+                    ? 'bg-blue-600 border-blue-700 text-white shadow-md ring-2 ring-blue-500 ring-offset-2' 
+                    : 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <Shirt className="w-4 h-4" />
+                <span>Cloths</span>
+              </button>
+              
+              <button 
+                type="button" 
+                onClick={() => toggleCategory('Curtain')} 
+                className={`py-2 px-3 rounded-lg border text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  category.includes('Curtain') 
+                    ? 'bg-teal-600 border-teal-700 text-white shadow-md ring-2 ring-teal-500 ring-offset-2' 
+                    : 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <Blinds className="w-4 h-4" />
+                <span>Curtain</span>
+              </button>
+
+              <button 
+                type="button" 
+                onClick={() => toggleCategory('Bed Sheets')} 
+                className={`py-2 px-3 rounded-lg border text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  category.includes('Bed Sheets') 
+                    ? 'bg-purple-600 border-purple-700 text-white shadow-md ring-2 ring-purple-500 ring-offset-2' 
+                    : 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <Bed className="w-4 h-4" />
+                <span>Bed Sheets</span>
+              </button>
+
+              <button 
+                type="button" 
+                onClick={() => toggleCategory('Others')} 
+                className={`py-2 px-3 rounded-lg border text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  category.includes('Others') 
+                    ? 'bg-slate-700 border-slate-800 text-white shadow-md ring-2 ring-slate-500 ring-offset-2' 
+                    : 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <Package className="w-4 h-4" />
+                <span>Others</span>
+              </button>
             </div>
           </section>
 
@@ -189,17 +328,23 @@ export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: S
               </div>
               
               <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
-                <button type="button" onClick={() => setPackaging('fold')} className="flex items-center space-x-3 cursor-pointer outline-none">
+                <button type="button" onClick={() => setPackaging('fold')} className="flex items-center space-x-2.5 cursor-pointer outline-none">
                   <div className={`h-6 w-6 rounded border flex items-center justify-center ${packaging === 'fold' ? 'bg-[#fbcfe8] border-[#f9a8d4]' : 'bg-white border-slate-300'}`}>
                     {packaging === 'fold' && <div className="h-3 w-3 rounded-sm bg-[#db2777]" />}
                   </div>
-                  <span className="text-lg font-bold text-slate-700">Fold</span>
+                  <div className="flex items-center gap-1.5">
+                    <Layers className="w-4 h-4 text-slate-600" />
+                    <span className="text-lg font-bold text-slate-700">Fold</span>
+                  </div>
                 </button>
-                <button type="button" onClick={() => setPackaging('hanger')} className="flex items-center space-x-3 cursor-pointer outline-none">
+                <button type="button" onClick={() => setPackaging('hanger')} className="flex items-center space-x-2.5 cursor-pointer outline-none">
                   <div className={`h-6 w-6 rounded border flex items-center justify-center ${packaging === 'hanger' ? 'bg-[#bfdbfe] border-[#93c5fd]' : 'bg-white border-slate-300'}`}>
                     {packaging === 'hanger' && <div className="h-3 w-3 rounded-sm bg-[#2563eb]" />}
                   </div>
-                  <span className="text-lg font-bold text-slate-700">Hanger</span>
+                  <div className="flex items-center gap-1.5">
+                    <Tag className="w-4 h-4 text-slate-600" />
+                    <span className="text-lg font-bold text-slate-700">Hanger</span>
+                  </div>
                 </button>
               </div>
               
@@ -217,25 +362,119 @@ export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: S
         <h2 className="text-xl font-bold text-slate-800 mb-4 border-b border-slate-200 pb-2">Billing Summary</h2>
         
         <div className="space-y-3 text-base mb-4">
+          {/* Wash Amount */}
           <div className="flex justify-between items-center">
-            <span className="text-slate-600 font-bold">Wash Amount</span>
+            <span className={`font-bold flex items-center gap-1.5 ${services.wash ? 'text-slate-800' : 'text-slate-400'}`}>
+              <Waves className="w-4 h-4 text-amber-500" />
+              <span>Wash Amount</span>
+            </span>
             <div className="flex items-center w-40 justify-end">
-              <span className="text-slate-400 mr-3 font-medium">Rs.</span>
-              <input type="number" step="0.01" value={washAmount} onChange={e => setWashAmount(e.target.value)} className="w-24 bg-white border border-slate-300 rounded text-right font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-2 py-1 outline-none" placeholder="0.00" />
+              <span className="text-slate-400 mr-2.5 font-medium text-sm">Rs.</span>
+              <div className="relative">
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  disabled={!services.wash}
+                  value={washAmount} 
+                  onChange={e => setWashAmount(e.target.value)} 
+                  className={`w-24 rounded border px-2 py-1 text-right font-bold text-sm outline-none transition-all ${
+                    services.wash 
+                      ? 'bg-white border-slate-300 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-inner' 
+                      : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed select-none pl-6'
+                  }`} 
+                  placeholder={services.wash ? "0.00" : "Frozen"} 
+                />
+                {!services.wash && (
+                  <Lock className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                )}
+              </div>
             </div>
           </div>
+
+          {/* Dry Amount */}
           <div className="flex justify-between items-center">
-            <span className="text-slate-600 font-bold">Dry Amount</span>
+            <span className={`font-bold flex items-center gap-1.5 ${services.dry ? 'text-slate-800' : 'text-slate-400'}`}>
+              <Wind className="w-4 h-4 text-emerald-500" />
+              <span>Dry Amount</span>
+            </span>
             <div className="flex items-center w-40 justify-end">
-              <span className="text-slate-400 mr-3 font-medium">Rs.</span>
-              <input type="number" step="0.01" value={dryAmount} onChange={e => setDryAmount(e.target.value)} className="w-24 bg-white border border-slate-300 rounded text-right font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-2 py-1 outline-none" placeholder="0.00" />
+              <span className="text-slate-400 mr-2.5 font-medium text-sm">Rs.</span>
+              <div className="relative">
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  disabled={!services.dry}
+                  value={dryAmount} 
+                  onChange={e => setDryAmount(e.target.value)} 
+                  className={`w-24 rounded border px-2 py-1 text-right font-bold text-sm outline-none transition-all ${
+                    services.dry 
+                      ? 'bg-white border-slate-300 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-inner' 
+                      : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed select-none pl-6'
+                  }`} 
+                  placeholder={services.dry ? "0.00" : "Frozen"} 
+                />
+                {!services.dry && (
+                  <Lock className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                )}
+              </div>
             </div>
           </div>
+
+          {/* Iron Amount */}
           <div className="flex justify-between items-center">
-            <span className="text-slate-600 font-bold">Iron Amount</span>
+            <span className={`font-bold flex items-center gap-1.5 ${services.iron ? 'text-slate-800' : 'text-slate-400'}`}>
+              <Flame className="w-4 h-4 text-blue-500" />
+              <span>Iron Amount</span>
+            </span>
             <div className="flex items-center w-40 justify-end">
-              <span className="text-slate-400 mr-3 font-medium">Rs.</span>
-              <input type="number" step="0.01" value={ironAmount} onChange={e => setIronAmount(e.target.value)} className="w-24 bg-white border border-slate-300 rounded text-right font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-2 py-1 outline-none" placeholder="0.00" />
+              <span className="text-slate-400 mr-2.5 font-medium text-sm">Rs.</span>
+              <div className="relative">
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  disabled={!services.iron}
+                  value={ironAmount} 
+                  onChange={e => setIronAmount(e.target.value)} 
+                  className={`w-24 rounded border px-2 py-1 text-right font-bold text-sm outline-none transition-all ${
+                    services.iron 
+                      ? 'bg-white border-slate-300 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-inner' 
+                      : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed select-none pl-6'
+                  }`} 
+                  placeholder={services.iron ? "0.00" : "Frozen"} 
+                />
+                {!services.iron && (
+                  <Lock className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* D/C Amount */}
+          <div className="flex justify-between items-center">
+            <span className={`font-bold flex items-center gap-1.5 ${services.dc ? 'text-slate-800' : 'text-slate-400'}`}>
+              <ShieldCheck className="w-4 h-4 text-pink-500" />
+              <span>D/C Amount</span>
+            </span>
+            <div className="flex items-center w-40 justify-end">
+              <span className="text-slate-400 mr-2.5 font-medium text-sm">Rs.</span>
+              <div className="relative">
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  disabled={!services.dc}
+                  value={dcAmount} 
+                  onChange={e => setDcAmount(e.target.value)} 
+                  className={`w-24 rounded border px-2 py-1 text-right font-bold text-sm outline-none transition-all ${
+                    services.dc 
+                      ? 'bg-white border-slate-300 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-inner' 
+                      : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed select-none pl-6'
+                  }`} 
+                  placeholder={services.dc ? "0.00" : "Frozen"} 
+                />
+                {!services.dc && (
+                  <Lock className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                )}
+              </div>
             </div>
           </div>
         </div>

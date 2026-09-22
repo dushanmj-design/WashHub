@@ -18,6 +18,10 @@ interface FinalBillPayload {
   final_amount: number;
   received_cash: number;
   shopName?: string;
+  isSupervisor?: boolean;
+  packaging?: string;
+  hangerQty?: number;
+  supervisor_data?: any;
 }
 
 interface FinalBillViewProps {
@@ -46,10 +50,23 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
   const changeDue = Math.max(0, payload.received_cash - payload.final_amount);
   const balanceDue = Math.max(0, payload.final_amount - payload.received_cash);
 
-  // Check if order includes Iron
-  const hasIron = Boolean(
-    typeof payload.services === 'string' && payload.services.toLowerCase().includes('iron')
-  );
+  // Extract supervisor order details if available
+  const supDetails = payload.supervisor_data?.order_details || payload.supervisor_data;
+  const supServices = supDetails?.services;
+  const supSpecs = supDetails?.specs;
+  const supBilling = supDetails?.billing;
+
+  // Determine services strictly based on supervisor data if present, or payload.services
+  const hasWash = supServices ? Boolean(supServices.wash) : (!payload.services || payload.services.toLowerCase().includes('wash'));
+  const hasDry = supServices ? Boolean(supServices.dry) : Boolean(payload.services && payload.services.toLowerCase().includes('dry'));
+  const hasIron = supServices ? Boolean(supServices.iron) : Boolean(payload.services && payload.services.toLowerCase().includes('iron'));
+  const hasDC = supServices ? Boolean(supServices.dc) : Boolean(payload.services && (payload.services.toLowerCase().includes('dc') || payload.services.toLowerCase().includes('dry clean')));
+
+  // Packaging selection (Fold vs Hanger)
+  const packagingType = supSpecs?.packaging || (payload as any).packaging || 'fold';
+  const isFold = packagingType === 'fold';
+  const isHanger = packagingType === 'hanger';
+  const hangerQty = supSpecs?.hanger_given_qty ?? (payload as any).hangerQty ?? 0;
 
   const formattedDate = new Date(payload.in_date || Date.now()).toLocaleDateString('en-GB');
   const formattedTime = new Date(payload.in_date || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -61,6 +78,7 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
     billNumber,
     isVendorCopy: forVendor,
     hasIron,
+    hasDC,
     date: formattedDate,
     customerName: payload.customer,
     customerPhone: payload.mobile,
@@ -197,109 +215,126 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
   // 1. CUSTOMER BILL (Exact replica of the original Wash Hub pre-printed bill format)
   const renderCustomerBill = () => {
     return (
-      <div className="receipt-content-wrapper bg-white text-black font-sans w-full p-2" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+      <div className="receipt-content-wrapper bg-white text-black font-sans w-full p-1.5" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
         {/* Brand Header matching original bill */}
-        <div className="text-center pb-2 border-b-2 border-black">
-          <h1 className="text-3xl font-black tracking-tight leading-none uppercase font-serif">
+        <div className="text-center pb-1 border-b-2 border-black">
+          <h1 className="text-2xl font-black tracking-tight leading-none uppercase font-serif">
             {payload.shopName?.toUpperCase() || 'WASH HUB'}
           </h1>
-          <div className="text-xs font-bold italic tracking-tight mt-1 text-slate-900">We do your laundry right - all day every day</div>
-          <div className="text-[11px] font-semibold mt-0.5 text-slate-800">
+          <div className="text-[10px] font-bold italic tracking-tight mt-0.5 text-slate-900">We do your laundry right - all day every day</div>
+          <div className="text-[10px] font-semibold mt-0.5 text-slate-800">
             101/C, Galle Road, Mount Lavinia. Tel: {shopPhone}
           </div>
         </div>
 
         {/* Bill Number & Badge Header */}
-        <div className="flex justify-between items-end my-2 pb-1.5 border-b-2 border-black">
-          <div className="bg-black text-white px-2 py-0.5 text-xs font-bold uppercase tracking-wider">
+        <div className="flex justify-between items-end my-1 pb-1 border-b-2 border-black">
+          <div className="bg-black text-white px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider">
             FINAL CUSTOMER BILL
           </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-base font-black uppercase tracking-wide">Bill #</span>
-            <span className="text-3xl font-black tracking-widest leading-none">{billNumber}</span>
+            <span className="text-sm font-black uppercase tracking-wide">Bill #</span>
+            <span className="text-2xl font-black tracking-widest leading-none">{billNumber}</span>
           </div>
         </div>
 
         {/* Customer & Order Metadata Section */}
-        <div className="space-y-1.5 text-sm font-semibold mb-2.5 pb-2 border-b border-black">
+        <div className="space-y-0.5 text-xs font-semibold mb-1.5 pb-1 border-b border-black">
           <div className="flex items-baseline">
-            <span className="w-32 shrink-0 font-bold text-slate-800">Customer Name</span>
+            <span className="w-28 shrink-0 font-bold text-slate-800">Customer Name</span>
             <span className="font-bold mr-1">:</span>
-            <span className="font-black text-base uppercase flex-1 truncate">{payload.customer}</span>
+            <span className="font-black text-sm uppercase flex-1 truncate">{payload.customer}</span>
           </div>
           <div className="flex items-baseline">
-            <span className="w-32 shrink-0 font-bold text-slate-800">Contact #</span>
+            <span className="w-28 shrink-0 font-bold text-slate-800">Contact #</span>
             <span className="font-bold mr-1">:</span>
-            <span className="font-bold text-base flex-1">{payload.mobile}</span>
+            <span className="font-bold text-sm flex-1">{payload.mobile}</span>
           </div>
           <div className="flex items-baseline">
-            <span className="w-32 shrink-0 font-bold text-slate-800">Date</span>
+            <span className="w-28 shrink-0 font-bold text-slate-800">Date</span>
             <span className="font-bold mr-1">:</span>
-            <span className="font-bold text-sm flex-1">{formattedDate} {formattedTime}</span>
+            <span className="font-bold text-xs flex-1">{formattedDate} {formattedTime}</span>
           </div>
           <div className="flex items-baseline">
-            <span className="w-32 shrink-0 font-bold text-slate-800">Weight</span>
+            <span className="w-28 shrink-0 font-bold text-slate-800">Weight</span>
             <span className="font-bold mr-1">:</span>
-            <span className="font-black text-base flex-1">
+            <span className="font-black text-sm flex-1">
               Kg {payload.weight} {payload.pieces ? <span className="text-xs font-normal text-slate-700 ml-1">({payload.pieces} pcs)</span> : ''}
             </span>
           </div>
         </div>
 
         {/* Middle Section: Status / Delivery Box (Left) & Services Table (Right) */}
-        <div className="grid grid-cols-2 gap-2 mb-2.5 pb-2 border-b border-black">
+        <div className="grid grid-cols-2 gap-1.5 mb-1.5 pb-1 border-b border-black">
           {/* Left Column */}
           <div className="flex flex-col justify-between">
             <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Status</div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-0.5">Status</div>
               <div className="border-2 border-black rounded-sm overflow-hidden">
-                <div className="bg-black text-white text-[11px] font-black text-center py-0.5 uppercase tracking-wider">
+                <div className="bg-black text-white text-[10px] font-black text-center py-0.5 uppercase tracking-wider">
                   Pickup / Settlement
                 </div>
-                <div className="p-1.5 text-center font-black text-xs bg-slate-50 min-h-[30px] flex items-center justify-center uppercase text-emerald-800">
-                  {balanceDue <= 0 ? '✓ Fully Paid' : `Bal Due: Rs. ${balanceDue.toFixed(2)}`}
+                <div className="p-1 text-center font-black text-xs bg-slate-50 min-h-[24px] flex items-center justify-center uppercase text-emerald-800">
+                  {balanceDue <= 0 ? '✓ Fully Paid' : `Bal: Rs. ${balanceDue.toFixed(2)}`}
                 </div>
               </div>
             </div>
 
-            <div className="space-y-1 pt-1.5 text-xs font-bold">
-              <div className="flex items-center gap-3">
+            <div className="space-y-0.5 pt-1 text-xs font-bold">
+              <div className="flex items-center gap-2.5">
                 <span className="flex items-center gap-1">
-                  Fold <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">✓</span>
+                  Fold <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">{isFold ? '✓' : ''}</span>
                 </span>
                 <span className="flex items-center gap-1">
-                  Hanger <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs"></span>
+                  Hanger <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">{isHanger ? '✓' : ''}</span>
                 </span>
               </div>
-              <div className="flex items-center gap-1 text-slate-700">
-                Hanger Rec <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs"></span>
+              <div className="flex items-center gap-1 text-slate-700 text-[11px]">
+                Hanger Rec <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">{hangerQty > 0 ? hangerQty : ''}</span>
               </div>
             </div>
           </div>
 
           {/* Right Column: Services */}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <div className="flex items-center justify-between gap-1">
-              <div className="flex items-center gap-1 text-xs font-bold">
+              <div className="flex items-center gap-1 text-[11px] font-bold">
                 <span>Services</span>
               </div>
-              <div className="border-2 border-black px-1.5 py-0.5 min-w-[70px] text-right font-black text-xs bg-slate-50 uppercase truncate">
-                {payload.services || 'Wash · Dry'}
+              <div className="border-2 border-black px-1.5 py-0.5 min-w-[65px] text-right font-black text-[11px] bg-slate-50 uppercase truncate">
+                {[hasWash && 'Wash', hasDry && 'Dry', hasIron && 'Iron', hasDC && 'D/C'].filter(Boolean).join(' · ') || 'Wash · Dry'}
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-1">
-              <div className="flex items-center gap-1 text-xs font-bold">
-                <span>Wash</span>
-                <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">✓</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-[11px] font-bold">Rs.</span>
-                <div className="border-2 border-black px-1.5 py-0.5 min-w-[70px] text-right font-black text-sm bg-slate-50">
-                  {payload.final_amount.toFixed(2)}
+            {hasWash && (
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex items-center gap-1 text-xs font-bold">
+                  <span>Wash</span>
+                  <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">✓</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-bold">Rs.</span>
+                  <div className="border-2 border-black px-1.5 py-0.5 min-w-[65px] text-right font-black text-xs bg-slate-50">
+                    {supBilling?.wash_amount ? supBilling.wash_amount.toFixed(2) : payload.final_amount.toFixed(2)}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {hasDry && (
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex items-center gap-1 text-xs font-bold">
+                  <span>Dry</span>
+                  <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">✓</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-bold">Rs.</span>
+                  <div className="border-2 border-black px-1.5 py-0.5 min-w-[65px] text-right font-black text-xs bg-slate-50">
+                    {supBilling?.dry_amount > 0 ? supBilling.dry_amount.toFixed(2) : 'Inc.'}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {hasIron && (
               <div className="flex items-center justify-between gap-1">
@@ -308,9 +343,24 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
                   <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">✓</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="text-[11px] font-bold">Rs.</span>
-                  <div className="border-2 border-black px-1.5 py-0.5 min-w-[70px] text-right font-black text-sm bg-slate-50">
-                    Inc.
+                  <span className="text-[10px] font-bold">Rs.</span>
+                  <div className="border-2 border-black px-1.5 py-0.5 min-w-[65px] text-right font-black text-xs bg-slate-50">
+                    {supBilling?.iron_amount > 0 ? supBilling.iron_amount.toFixed(2) : 'Inc.'}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {hasDC && (
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex items-center gap-1 text-xs font-bold">
+                  <span>D/C</span>
+                  <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">✓</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-bold">Rs.</span>
+                  <div className="border-2 border-black px-1.5 py-0.5 min-w-[65px] text-right font-black text-xs bg-slate-50">
+                    {supBilling?.dc_amount > 0 ? supBilling.dc_amount.toFixed(2) : 'Inc.'}
                   </div>
                 </div>
               </div>
@@ -319,12 +369,12 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
         </div>
 
         {/* Financial Section: Formatted with outline boxes matching original bill */}
-        <div className="space-y-1.5 mb-2.5">
+        <div className="space-y-1 mb-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-black uppercase tracking-wide">TOTAL AMOUNT</span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm font-bold">Rs.</span>
-              <div className="border-2 border-black px-2.5 py-1 min-w-[90px] text-right font-black text-base bg-slate-50">
+            <span className="text-xs font-black uppercase tracking-wide">TOTAL AMOUNT</span>
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-bold">Rs.</span>
+              <div className="border-2 border-black px-2 py-0.5 min-w-[80px] text-right font-black text-sm bg-slate-50">
                 {payload.final_amount.toFixed(2)}
               </div>
             </div>
@@ -332,9 +382,9 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
 
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wide text-slate-800">CASH RECEIVED</span>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <span className="text-xs font-bold">Rs.</span>
-              <div className="border-2 border-black px-2.5 py-0.5 min-w-[90px] text-right font-bold text-sm bg-slate-50">
+              <div className="border-2 border-black px-2 py-0.5 min-w-[80px] text-right font-bold text-xs bg-slate-50">
                 {payload.received_cash.toFixed(2)}
               </div>
             </div>
@@ -343,9 +393,9 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
           {changeDue > 0 && (
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wide text-emerald-800">CHANGE RETURNED</span>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1">
                 <span className="text-xs font-bold">Rs.</span>
-                <div className="border-2 border-black px-2.5 py-0.5 min-w-[90px] text-right font-bold text-sm bg-emerald-50">
+                <div className="border-2 border-black px-2 py-0.5 min-w-[80px] text-right font-bold text-xs bg-emerald-50">
                   {changeDue.toFixed(2)}
                 </div>
               </div>
@@ -353,28 +403,28 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
           )}
 
           <div className="flex items-center justify-between">
-            <span className="text-sm font-black uppercase tracking-wide">
+            <span className="text-xs font-black uppercase tracking-wide">
               {balanceDue > 0 ? 'BALANCE DUE' : 'BALANCE TO BE PAID'}
             </span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm font-black">Rs.</span>
-              <div className={`border-2 border-black px-2.5 py-1 min-w-[90px] text-right font-black text-base ${balanceDue > 0 ? 'bg-red-50 text-red-700' : 'bg-slate-100'}`}>
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-black">Rs.</span>
+              <div className={`border-2 border-black px-2 py-0.5 min-w-[80px] text-right font-black text-sm ${balanceDue > 0 ? 'bg-red-50 text-red-700' : 'bg-slate-100'}`}>
                 {balanceDue > 0 ? balanceDue.toFixed(2) : '0.00'}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Thick Solid Black Divider Bar */}
-        <div className="h-1 bg-black w-full my-2"></div>
+        {/* Solid Black Divider Bar */}
+        <div className="h-0.5 bg-black w-full my-1"></div>
 
         {/* Hours Bar */}
-        <div className="text-center font-black text-sm uppercase tracking-wide my-1">
+        <div className="text-center font-black text-xs uppercase tracking-wide my-0.5">
           Open 7.30 am. to 7.30 pm. 365 Days
         </div>
 
         {/* Footer Terms with Square Bullets (■) from original bill */}
-        <div className="text-[11px] leading-snug space-y-1 border-t border-black pt-2 text-black">
+        <div className="text-[9px] leading-tight space-y-0.5 border-t border-black pt-1 text-black">
           <p className="flex items-start gap-1">
             <span className="font-black text-xs">■</span>
             <span>Please be kind enough to provide your bill at collection</span>
@@ -385,54 +435,54 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
           </p>
           <p className="flex items-start gap-1">
             <span className="font-black text-xs">■</span>
-            <span>We are not responsible for any colorfastness in cloths, please make sure to read the "Care Label" before provide to washing & drying.</span>
+            <span>We are not responsible for colorfastness in cloths. Check care labels before wash/dry.</span>
           </p>
         </div>
 
-        {/* Paper Feed & Cutter Clearance Spacer - feeds 22mm blank paper so cutter never slices bottom text */}
-        <div className="receipt-cutter-spacer w-full" style={{ minHeight: '18mm' }} aria-hidden="true"></div>
+        {/* Paper Feed & Cutter Clearance Spacer - snug 6mm blank feed */}
+        <div className="receipt-cutter-spacer w-full" style={{ minHeight: '6mm' }} aria-hidden="true"></div>
       </div>
     );
   };
 
-  // 2. VENDOR WORKSHOP TAG (Matches Wash Dry.jpeg / Wash Dry Iron.jpeg + QR Code with Enlarged Fonts)
+  // 2. VENDOR WORKSHOP TAG (Matches Wash Dry.jpeg / Wash Dry Iron.jpeg + QR Code with Compact Sharp Fit)
   const renderVendorTag = () => (
-    <div className="receipt-content-wrapper bg-white text-black font-sans w-full p-2" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+    <div className="receipt-content-wrapper bg-white text-black font-sans w-full p-1.5" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
       
       {/* Outer Card replicating physical tag card */}
-      <div className="border-2 border-black p-2 bg-white mb-2">
+      <div className="border-2 border-black p-1.5 bg-white mb-1">
         {/* Brand & Phone Block */}
-        <div className="flex justify-between items-start border-b-2 border-black pb-1.5 mb-2">
+        <div className="flex justify-between items-start border-b-2 border-black pb-1 mb-1">
           <div>
-            <h2 className="text-2xl font-black uppercase tracking-tight leading-none">
+            <h2 className="text-xl font-black uppercase tracking-tight leading-none">
               {payload.shopName?.toUpperCase() || 'WASH HUB'}
             </h2>
-            <div className="text-xs font-bold text-slate-800 mt-1">Tel: {shopPhone}</div>
+            <div className="text-[10px] font-bold text-slate-800 mt-0.5">Tel: {shopPhone}</div>
           </div>
           <div className="text-right">
-            <span className="text-xs font-black uppercase bg-black text-white px-2 py-1">
-              {hasIron ? 'WASH · DRY · IRON' : 'WASH · DRY'}
+            <span className="text-[10px] font-black uppercase bg-black text-white px-1.5 py-0.5">
+              {[hasWash && 'WASH', hasDry && 'DRY', hasIron && 'IRON', hasDC && 'D/C'].filter(Boolean).join(' · ') || 'WASH · DRY'}
             </span>
           </div>
         </div>
 
-        {/* Form Fields with clear rectangular outline boxes and larger font sizes */}
-        <div className="space-y-1.5 text-sm">
+        {/* Form Fields with clear rectangular outline boxes */}
+        <div className="space-y-1 text-xs">
           
           {/* Wash Row */}
           <div className="flex items-center">
-            <div className="w-24 shrink-0 font-black text-sm">Wash :</div>
-            <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center justify-between font-bold text-sm bg-slate-50">
-              <span>✓ Included</span>
+            <div className="w-20 shrink-0 font-black text-xs">Wash :</div>
+            <div className="flex-1 border-2 border-black px-2 py-0.5 min-h-[26px] flex items-center justify-between font-bold text-xs bg-slate-50">
+              <span>{hasWash ? '✓ Included' : '[  ]'}</span>
               <span>[ Load ]</span>
             </div>
           </div>
 
           {/* Dry Row */}
           <div className="flex items-center">
-            <div className="w-24 shrink-0 font-black text-sm">Dry :</div>
-            <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center justify-between font-bold text-sm bg-slate-50">
-              <span>✓ Included</span>
+            <div className="w-20 shrink-0 font-black text-xs">Dry :</div>
+            <div className="flex-1 border-2 border-black px-2 py-0.5 min-h-[26px] flex items-center justify-between font-bold text-xs bg-slate-50">
+              <span>{hasDry ? '✓ Included' : '[  ]'}</span>
               <span>[ Dryer ]</span>
             </div>
           </div>
@@ -440,52 +490,63 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
           {/* Iron Row */}
           {hasIron && (
             <div className="flex items-center">
-              <div className="w-24 shrink-0 font-black text-sm">Iron :</div>
-              <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center justify-between font-bold text-sm bg-slate-50">
+              <div className="w-20 shrink-0 font-black text-xs">Iron :</div>
+              <div className="flex-1 border-2 border-black px-2 py-0.5 min-h-[26px] flex items-center justify-between font-bold text-xs bg-slate-50">
                 <span>✓ Included</span>
                 <span>[ Press ]</span>
               </div>
             </div>
           )}
 
+          {/* D/C Row */}
+          {hasDC && (
+            <div className="flex items-center">
+              <div className="w-20 shrink-0 font-black text-xs">D/C :</div>
+              <div className="flex-1 border-2 border-black px-2 py-0.5 min-h-[26px] flex items-center justify-between font-bold text-xs bg-slate-50">
+                <span>✓ Included</span>
+                <span>[ Dry Clean ]</span>
+              </div>
+            </div>
+          )}
+
           {/* Amount Row */}
           <div className="flex items-center">
-            <div className="w-24 shrink-0 font-black text-sm">Amount :</div>
-            <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center justify-between font-black text-base bg-slate-50">
+            <div className="w-20 shrink-0 font-black text-xs">Amount :</div>
+            <div className="flex-1 border-2 border-black px-2 py-0.5 min-h-[26px] flex items-center justify-between font-black text-sm bg-slate-50">
               <span>Rs. {payload.final_amount.toFixed(2)}</span>
-              {balanceDue > 0 && <span className="text-xs font-normal text-red-600">(Due: Rs. {balanceDue.toFixed(2)})</span>}
+              {balanceDue > 0 && <span className="text-[10px] font-normal text-red-600">(Due: Rs. {balanceDue.toFixed(2)})</span>}
             </div>
           </div>
 
           {/* In Date Row */}
           <div className="flex items-center">
-            <div className="w-24 shrink-0 font-black text-sm">In date :</div>
-            <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center font-bold text-sm bg-slate-50">
+            <div className="w-20 shrink-0 font-black text-xs">In date :</div>
+            <div className="flex-1 border-2 border-black px-2 py-0.5 min-h-[26px] flex items-center font-bold text-xs bg-slate-50">
               {formattedDate} {formattedTime}
             </div>
           </div>
 
           {/* Name Row */}
           <div className="flex items-center">
-            <div className="w-24 shrink-0 font-black text-sm">Name :</div>
-            <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center font-black text-sm uppercase bg-slate-50 truncate">
+            <div className="w-20 shrink-0 font-black text-xs">Name :</div>
+            <div className="flex-1 border-2 border-black px-2 py-0.5 min-h-[26px] flex items-center font-black text-xs uppercase bg-slate-50 truncate">
               {payload.customer}
             </div>
           </div>
 
           {/* Weight Row */}
           <div className="flex items-center">
-            <div className="w-24 shrink-0 font-black text-sm">Weight :</div>
-            <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center justify-between font-bold text-sm bg-slate-50">
+            <div className="w-20 shrink-0 font-black text-xs">Weight :</div>
+            <div className="flex-1 border-2 border-black px-2 py-0.5 min-h-[26px] flex items-center justify-between font-bold text-xs bg-slate-50">
               <span>{payload.weight}</span>
-              {payload.pieces && <span className="text-xs text-slate-700">({payload.pieces} pcs)</span>}
+              {payload.pieces && <span className="text-[11px] text-slate-700">({payload.pieces} pcs)</span>}
             </div>
           </div>
 
           {/* Bill # Row */}
           <div className="flex items-center pt-0.5">
-            <div className="w-24 shrink-0 font-black text-sm">Bill # :</div>
-            <div className="flex-1 border-2 border-black px-2.5 py-1.5 min-h-[34px] flex items-center justify-center font-black text-2xl tracking-widest bg-slate-100">
+            <div className="w-20 shrink-0 font-black text-xs">Bill # :</div>
+            <div className="flex-1 border-2 border-black px-2 py-1 min-h-[30px] flex items-center justify-center font-black text-xl tracking-widest bg-slate-100">
               {billNumber}
             </div>
           </div>
@@ -493,19 +554,19 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
       </div>
 
       {/* QR Code Section */}
-      <div className="flex flex-col items-center justify-center py-2.5 border-t-2 border-dashed border-black">
-        <div className="text-sm font-black uppercase tracking-wider mb-1">SCAN WHEN READY</div>
-        <div className="p-1.5 bg-white border-2 border-black rounded">
-          <QRCodeSVG value={payload.barcode || `WB-${billNumber}`} size={135} level="M" />
+      <div className="flex flex-col items-center justify-center py-1.5 border-t-2 border-dashed border-black">
+        <div className="text-xs font-black uppercase tracking-wider mb-0.5">SCAN WHEN READY</div>
+        <div className="p-1 bg-white border-2 border-black rounded">
+          <QRCodeSVG value={payload.barcode || `WB-${billNumber}`} size={105} level="M" />
         </div>
-        <div className="font-mono font-black text-sm mt-1 tracking-wider">{payload.barcode || `WB-${billNumber}`}</div>
-        <div className="text-[11px] font-bold uppercase tracking-widest mt-0.5 text-slate-700">
+        <div className="font-mono font-black text-xs mt-0.5 tracking-wider">{payload.barcode || `WB-${billNumber}`}</div>
+        <div className="text-[10px] font-bold uppercase tracking-widest text-slate-700">
           VENDOR COPY · ATTACH TO LAUNDRY SACK
         </div>
       </div>
 
-      {/* Paper Feed & Cutter Clearance Spacer - feeds 22mm blank paper so cutter never slices bottom barcode/tag */}
-      <div className="receipt-cutter-spacer w-full" style={{ minHeight: '18mm' }} aria-hidden="true"></div>
+      {/* Paper Feed & Cutter Clearance Spacer - snug 6mm blank feed */}
+      <div className="receipt-cutter-spacer w-full" style={{ minHeight: '6mm' }} aria-hidden="true"></div>
     </div>
   );
 

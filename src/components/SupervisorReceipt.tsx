@@ -32,12 +32,33 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
   
   const billNumber = payload.barcode ? payload.barcode.replace('WB-', '') : '1025';
 
-  // Check if order includes Iron
-  const hasIron = Boolean(
-    orderDetails.services?.iron || 
-    (orderDetails.billing?.iron_amount && orderDetails.billing.iron_amount > 0) ||
-    (typeof payload.services === 'string' && payload.services.toLowerCase().includes('iron'))
+  // Extract service flags strictly based on orderDetails.services
+  const hasWash = Boolean(
+    orderDetails.services ? orderDetails.services.wash : 
+    (!payload.services || payload.services.toLowerCase().includes('wash'))
   );
+
+  const hasDry = Boolean(
+    orderDetails.services ? orderDetails.services.dry : 
+    (payload.services && payload.services.toLowerCase().includes('dry'))
+  );
+
+  const hasIron = Boolean(
+    orderDetails.services ? orderDetails.services.iron : 
+    ((orderDetails.billing?.iron_amount && orderDetails.billing.iron_amount > 0) ||
+    (typeof payload.services === 'string' && payload.services.toLowerCase().includes('iron')))
+  );
+
+  const hasDC = Boolean(
+    orderDetails.services ? orderDetails.services.dc : 
+    ((orderDetails.billing?.dc_amount && orderDetails.billing.dc_amount > 0) ||
+    (typeof payload.services === 'string' && (payload.services.toLowerCase().includes('dc') || payload.services.toLowerCase().includes('dry clean'))))
+  );
+
+  // Check packaging strictly from specs
+  const isFold = orderDetails.specs?.packaging === 'fold';
+  const isHanger = orderDetails.specs?.packaging === 'hanger';
+  const hangerQty = orderDetails.specs?.hanger_given_qty || 0;
 
   const shopPhone = '011 3041630, 011 2735490';
   const customerName = orderDetails.customer?.name || payload.customer || 'CUSTOMER';
@@ -57,6 +78,7 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
     billNumber,
     isVendorCopy: forVendor,
     hasIron,
+    hasDC,
     date: inDate,
     customerName,
     customerPhone,
@@ -65,6 +87,7 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
     washAmount: orderDetails.billing?.wash_amount,
     dryAmount: orderDetails.billing?.dry_amount,
     ironAmount: orderDetails.billing?.iron_amount,
+    dcAmount: orderDetails.billing?.dc_amount,
     totalAmount: totalDisplay,
     advanceAmount: advanceDisplay,
     balanceAmount: balanceDisplay,
@@ -193,80 +216,78 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
     }
   };
 
-  // 1. CUSTOMER RECEIPT (Exact replica of the original Wash Hub pre-printed bill format)
+  // 1. CUSTOMER RECEIPT (Exact replica of original pre-printed bill format)
   const renderCustomerReceipt = () => {
-    const isHanger = orderDetails.specs?.packaging === 'hanger';
-    const isFold = !isHanger;
     const deliveryDate = orderDetails.order_metadata?.delivery_date || '-';
 
     return (
-      <div className="receipt-content-wrapper bg-white text-black font-sans w-full p-2" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+      <div className="receipt-content-wrapper bg-white text-black font-sans w-full p-1.5" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
         {/* Brand Header matching original bill */}
-        <div className="text-center pb-2 border-b-2 border-black">
-          <h1 className="text-3xl font-black tracking-tight leading-none uppercase font-serif">Wash Hub</h1>
-          <div className="text-xs font-bold italic tracking-tight mt-1 text-slate-900">We do your laundry right - all day every day</div>
-          <div className="text-[11px] font-semibold mt-0.5 text-slate-800">
+        <div className="text-center pb-1 border-b-2 border-black">
+          <h1 className="text-2xl font-black tracking-tight leading-none uppercase font-serif">Wash Hub</h1>
+          <div className="text-[10px] font-bold italic tracking-tight mt-0.5 text-slate-900">We do your laundry right - all day every day</div>
+          <div className="text-[10px] font-semibold mt-0.5 text-slate-800">
             101/C, Galle Road, Mount Lavinia. Tel: {shopPhone}
           </div>
         </div>
 
         {/* Bill Number & Badge Header */}
-        <div className="flex justify-between items-end my-2 pb-1.5 border-b-2 border-black">
-          <div className="bg-black text-white px-2 py-0.5 text-xs font-bold uppercase tracking-wider">
+        <div className="flex justify-between items-end my-1 pb-1 border-b-2 border-black">
+          <div className="bg-black text-white px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider">
             CUSTOMER RECEIPT
           </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-base font-black uppercase tracking-wide">Bill #</span>
-            <span className="text-3xl font-black tracking-widest leading-none">{billNumber}</span>
+            <span className="text-sm font-black uppercase tracking-wide">Bill #</span>
+            <span className="text-2xl font-black tracking-widest leading-none">{billNumber}</span>
           </div>
         </div>
 
         {/* Customer & Order Metadata Section */}
-        <div className="space-y-1.5 text-sm font-semibold mb-2.5 pb-2 border-b border-black">
+        <div className="space-y-0.5 text-xs font-semibold mb-1.5 pb-1 border-b border-black">
           <div className="flex items-baseline">
-            <span className="w-32 shrink-0 font-bold text-slate-800">Customer Name</span>
+            <span className="w-28 shrink-0 font-bold text-slate-800">Customer Name</span>
             <span className="font-bold mr-1">:</span>
-            <span className="font-black text-base uppercase flex-1 truncate">{customerName}</span>
+            <span className="font-black text-sm uppercase flex-1 truncate">{customerName}</span>
           </div>
           <div className="flex items-baseline">
-            <span className="w-32 shrink-0 font-bold text-slate-800">Contact #</span>
+            <span className="w-28 shrink-0 font-bold text-slate-800">Contact #</span>
             <span className="font-bold mr-1">:</span>
-            <span className="font-bold text-base flex-1">{customerPhone}</span>
+            <span className="font-bold text-sm flex-1">{customerPhone}</span>
           </div>
           <div className="flex items-baseline">
-            <span className="w-32 shrink-0 font-bold text-slate-800">Date</span>
+            <span className="w-28 shrink-0 font-bold text-slate-800">Date</span>
             <span className="font-bold mr-1">:</span>
-            <span className="font-bold text-sm flex-1">{inDate} {inTime}</span>
+            <span className="font-bold text-xs flex-1">{inDate} {inTime}</span>
           </div>
           <div className="flex items-baseline">
-            <span className="w-32 shrink-0 font-bold text-slate-800">Weight</span>
+            <span className="w-28 shrink-0 font-bold text-slate-800">Weight</span>
             <span className="font-bold mr-1">:</span>
-            <span className="font-black text-base flex-1">
+            <span className="font-black text-sm flex-1">
               Kg {weightDisplay} {qtyDisplay ? <span className="text-xs font-normal text-slate-700 ml-1">({qtyDisplay} pcs)</span> : ''}
             </span>
           </div>
         </div>
 
         {/* Middle Section: Status / Delivery Box (Left) & Services Table (Right) */}
-        <div className="grid grid-cols-2 gap-2 mb-2.5 pb-2 border-b border-black">
+        <div className="grid grid-cols-2 gap-1.5 mb-1.5 pb-1 border-b border-black">
           {/* Left Column: Status & Delivery Box & Packaging checkboxes */}
           <div className="flex flex-col justify-between">
             <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Status</div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-0.5">Status</div>
               {/* Delivery Date Framed Box */}
               <div className="border-2 border-black rounded-sm overflow-hidden">
-                <div className="bg-black text-white text-[11px] font-black text-center py-0.5 uppercase tracking-wider">
+                <div className="bg-black text-white text-[10px] font-black text-center py-0.5 uppercase tracking-wider">
                   Delivery Date
                 </div>
-                <div className="p-1.5 text-center font-black text-sm bg-slate-50 min-h-[30px] flex items-center justify-center">
+                <div className="p-1 text-center font-black text-xs bg-slate-50 min-h-[24px] flex items-center justify-center">
                   {deliveryDate}
                 </div>
               </div>
             </div>
 
             {/* Checkboxes: Fold / Hanger */}
-            <div className="space-y-1 pt-1.5 text-xs font-bold">
-              <div className="flex items-center gap-3">
+            <div className="space-y-0.5 pt-1 text-xs font-bold">
+              <div className="flex items-center gap-2.5">
                 <span className="flex items-center gap-1">
                   Fold <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">{isFold ? '✓' : ''}</span>
                 </span>
@@ -274,71 +295,87 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
                   Hanger <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">{isHanger ? '✓' : ''}</span>
                 </span>
               </div>
-              <div className="flex items-center gap-1 text-slate-700">
-                Hanger Rec <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs"></span>
+              <div className="flex items-center gap-1 text-slate-700 text-[11px]">
+                Hanger Rec <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">{hangerQty > 0 ? hangerQty : ''}</span>
               </div>
             </div>
           </div>
 
-          {/* Right Column: Wash / Dry / Iron with rectangular outline boxes */}
-          <div className="space-y-1.5">
+          {/* Right Column: Wash / Dry / Iron / D/C with outline boxes */}
+          <div className="space-y-1">
             {/* Wash Row */}
-            <div className="flex items-center justify-between gap-1">
-              <div className="flex items-center gap-1 text-xs font-bold">
-                <span>Wash</span>
-                <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">
-                  {orderDetails.services?.wash ? '✓' : ''}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-[11px] font-bold">Rs.</span>
-                <div className="border-2 border-black px-1.5 py-0.5 min-w-[70px] text-right font-black text-sm bg-slate-50">
-                  {orderDetails.billing?.wash_amount > 0 ? orderDetails.billing.wash_amount.toFixed(2) : '-'}
+            {hasWash && (
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex items-center gap-1 text-xs font-bold">
+                  <span>Wash</span>
+                  <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">✓</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-bold">Rs.</span>
+                  <div className="border-2 border-black px-1.5 py-0.5 min-w-[65px] text-right font-black text-xs bg-slate-50">
+                    {orderDetails.billing?.wash_amount > 0 ? orderDetails.billing.wash_amount.toFixed(2) : '-'}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Dry Row */}
-            <div className="flex items-center justify-between gap-1">
-              <div className="flex items-center gap-1 text-xs font-bold">
-                <span>Dry</span>
-                <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">
-                  {orderDetails.services?.dry ? '✓' : ''}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-[11px] font-bold">Rs.</span>
-                <div className="border-2 border-black px-1.5 py-0.5 min-w-[70px] text-right font-black text-sm bg-slate-50">
-                  {orderDetails.billing?.dry_amount > 0 ? orderDetails.billing.dry_amount.toFixed(2) : '-'}
+            {hasDry && (
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex items-center gap-1 text-xs font-bold">
+                  <span>Dry</span>
+                  <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">✓</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-bold">Rs.</span>
+                  <div className="border-2 border-black px-1.5 py-0.5 min-w-[65px] text-right font-black text-xs bg-slate-50">
+                    {orderDetails.billing?.dry_amount > 0 ? orderDetails.billing.dry_amount.toFixed(2) : '-'}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Iron Row */}
-            <div className="flex items-center justify-between gap-1">
-              <div className="flex items-center gap-1 text-xs font-bold">
-                <span>Iron</span>
-                <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">
-                  {orderDetails.services?.iron ? '✓' : ''}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-[11px] font-bold">Rs.</span>
-                <div className="border-2 border-black px-1.5 py-0.5 min-w-[70px] text-right font-black text-sm bg-slate-50">
-                  {orderDetails.billing?.iron_amount > 0 ? orderDetails.billing.iron_amount.toFixed(2) : '-'}
+            {hasIron && (
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex items-center gap-1 text-xs font-bold">
+                  <span>Iron</span>
+                  <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">✓</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-bold">Rs.</span>
+                  <div className="border-2 border-black px-1.5 py-0.5 min-w-[65px] text-right font-black text-xs bg-slate-50">
+                    {orderDetails.billing?.iron_amount > 0 ? orderDetails.billing.iron_amount.toFixed(2) : '-'}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* D/C Row */}
+            {hasDC && (
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex items-center gap-1 text-xs font-bold">
+                  <span>D/C</span>
+                  <span className="inline-block border-2 border-black w-4 h-4 text-center leading-3 font-black text-xs">✓</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-bold">Rs.</span>
+                  <div className="border-2 border-black px-1.5 py-0.5 min-w-[65px] text-right font-black text-xs bg-slate-50">
+                    {orderDetails.billing?.dc_amount > 0 ? orderDetails.billing.dc_amount.toFixed(2) : '-'}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Financial Section: Formatted with outline boxes matching original bill */}
-        <div className="space-y-1.5 mb-2.5">
+        <div className="space-y-1 mb-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-black uppercase tracking-wide">TOTAL AMOUNT</span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm font-bold">Rs.</span>
-              <div className="border-2 border-black px-2.5 py-1 min-w-[90px] text-right font-black text-base bg-slate-50">
+            <span className="text-xs font-black uppercase tracking-wide">TOTAL AMOUNT</span>
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-bold">Rs.</span>
+              <div className="border-2 border-black px-2 py-0.5 min-w-[80px] text-right font-black text-sm bg-slate-50">
                 {totalDisplay}
               </div>
             </div>
@@ -346,35 +383,35 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
 
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wide text-slate-800">ADVANCE PAID</span>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <span className="text-xs font-bold">Rs.</span>
-              <div className="border-2 border-black px-2.5 py-0.5 min-w-[90px] text-right font-bold text-sm bg-slate-50">
+              <div className="border-2 border-black px-2 py-0.5 min-w-[80px] text-right font-bold text-xs bg-slate-50">
                 {advanceDisplay}
               </div>
             </div>
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-sm font-black uppercase tracking-wide">BALANCE TO BE PAID</span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm font-black">Rs.</span>
-              <div className="border-2 border-black px-2.5 py-1 min-w-[90px] text-right font-black text-base bg-slate-100">
+            <span className="text-xs font-black uppercase tracking-wide">BALANCE TO BE PAID</span>
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-black">Rs.</span>
+              <div className="border-2 border-black px-2 py-0.5 min-w-[80px] text-right font-black text-sm bg-slate-100">
                 {balanceDisplay}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Thick Solid Black Divider Bar */}
-        <div className="h-1 bg-black w-full my-2"></div>
+        {/* Solid Black Divider Bar */}
+        <div className="h-0.5 bg-black w-full my-1"></div>
 
         {/* Hours Bar */}
-        <div className="text-center font-black text-sm uppercase tracking-wide my-1">
+        <div className="text-center font-black text-xs uppercase tracking-wide my-0.5">
           Open 7.30 am. to 7.30 pm. 365 Days
         </div>
 
         {/* Footer Terms with Square Bullets (■) from original bill */}
-        <div className="text-[11px] leading-snug space-y-1 border-t border-black pt-2 text-black">
+        <div className="text-[9px] leading-tight space-y-0.5 border-t border-black pt-1 text-black">
           <p className="flex items-start gap-1">
             <span className="font-black text-xs">■</span>
             <span>Please be kind enough to provide your bill at collection</span>
@@ -385,52 +422,52 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
           </p>
           <p className="flex items-start gap-1">
             <span className="font-black text-xs">■</span>
-            <span>We are not responsible for any colorfastness in cloths, please make sure to read the "Care Label" before provide to washing & drying.</span>
+            <span>We are not responsible for colorfastness in cloths. Check care labels before wash/dry.</span>
           </p>
         </div>
 
-        {/* Paper Feed & Cutter Clearance Spacer - feeds 22mm blank paper so cutter never slices bottom text */}
-        <div className="receipt-cutter-spacer w-full" style={{ minHeight: '18mm' }} aria-hidden="true"></div>
+        {/* Paper Feed & Cutter Clearance Spacer - snug 6mm blank feed */}
+        <div className="receipt-cutter-spacer w-full" style={{ minHeight: '6mm' }} aria-hidden="true"></div>
       </div>
     );
   };
 
-  // 2. VENDOR WORKSHOP TAG (Matches Wash Dry.jpeg / Wash Dry Iron.jpeg + QR Code with Enlarged Fonts)
+  // 2. VENDOR WORKSHOP TAG (Matches Wash Dry.jpeg / Wash Dry Iron.jpeg + QR Code with Compact Sharp Fit)
   const renderVendorReceipt = () => (
-    <div className="receipt-content-wrapper bg-white text-black font-sans w-full p-2" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+    <div className="receipt-content-wrapper bg-white text-black font-sans w-full p-1.5" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
       
       {/* Outer Card replicating physical tag card */}
-      <div className="border-2 border-black p-2 bg-white mb-2">
+      <div className="border-2 border-black p-1.5 bg-white mb-1">
         {/* Brand & Phone Block */}
-        <div className="flex justify-between items-start border-b-2 border-black pb-1.5 mb-2">
+        <div className="flex justify-between items-start border-b-2 border-black pb-1 mb-1">
           <div>
-            <h2 className="text-2xl font-black uppercase tracking-tight leading-none">Wash Hub</h2>
-            <div className="text-xs font-bold text-slate-800 mt-1">Tel: {shopPhone}</div>
+            <h2 className="text-xl font-black uppercase tracking-tight leading-none">Wash Hub</h2>
+            <div className="text-[10px] font-bold text-slate-800 mt-0.5">Tel: {shopPhone}</div>
           </div>
           <div className="text-right">
-            <span className="text-xs font-black uppercase bg-black text-white px-2 py-1">
-              {hasIron ? 'WASH · DRY · IRON' : 'WASH · DRY'}
+            <span className="text-[10px] font-black uppercase bg-black text-white px-1.5 py-0.5">
+              {[hasWash && 'WASH', hasDry && 'DRY', hasIron && 'IRON', hasDC && 'D/C'].filter(Boolean).join(' · ') || 'WASH · DRY'}
             </span>
           </div>
         </div>
 
-        {/* Form Fields with clear rectangular outline boxes and larger font sizes */}
-        <div className="space-y-1.5 text-sm">
+        {/* Form Fields with clear rectangular outline boxes */}
+        <div className="space-y-1 text-xs">
           
           {/* Wash Row */}
           <div className="flex items-center">
-            <div className="w-24 shrink-0 font-black text-sm">Wash :</div>
-            <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center justify-between font-bold text-sm bg-slate-50">
-              <span>{orderDetails.services?.wash ? '✓ Included' : '[  ]'}</span>
+            <div className="w-20 shrink-0 font-black text-xs">Wash :</div>
+            <div className="flex-1 border-2 border-black px-2 py-0.5 min-h-[26px] flex items-center justify-between font-bold text-xs bg-slate-50">
+              <span>{hasWash ? '✓ Included' : '[  ]'}</span>
               <span>{orderDetails.billing?.wash_amount > 0 ? `Rs. ${orderDetails.billing.wash_amount.toFixed(0)}` : ''}</span>
             </div>
           </div>
 
           {/* Dry Row */}
           <div className="flex items-center">
-            <div className="w-24 shrink-0 font-black text-sm">Dry :</div>
-            <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center justify-between font-bold text-sm bg-slate-50">
-              <span>{orderDetails.services?.dry ? '✓ Included' : '[  ]'}</span>
+            <div className="w-20 shrink-0 font-black text-xs">Dry :</div>
+            <div className="flex-1 border-2 border-black px-2 py-0.5 min-h-[26px] flex items-center justify-between font-bold text-xs bg-slate-50">
+              <span>{hasDry ? '✓ Included' : '[  ]'}</span>
               <span>{orderDetails.billing?.dry_amount > 0 ? `Rs. ${orderDetails.billing.dry_amount.toFixed(0)}` : ''}</span>
             </div>
           </div>
@@ -438,52 +475,63 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
           {/* Iron Row (ONLY present if Wash Dry Iron, per Wash Dry Iron.jpeg) */}
           {hasIron && (
             <div className="flex items-center">
-              <div className="w-24 shrink-0 font-black text-sm">Iron :</div>
-              <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center justify-between font-bold text-sm bg-slate-50">
-                <span>{orderDetails.services?.iron ? '✓ Included' : '[  ]'}</span>
+              <div className="w-20 shrink-0 font-black text-xs">Iron :</div>
+              <div className="flex-1 border-2 border-black px-2 py-0.5 min-h-[26px] flex items-center justify-between font-bold text-xs bg-slate-50">
+                <span>✓ Included</span>
                 <span>{orderDetails.billing?.iron_amount > 0 ? `Rs. ${orderDetails.billing.iron_amount.toFixed(0)}` : ''}</span>
+              </div>
+            </div>
+          )}
+
+          {/* D/C Row */}
+          {hasDC && (
+            <div className="flex items-center">
+              <div className="w-20 shrink-0 font-black text-xs">D/C :</div>
+              <div className="flex-1 border-2 border-black px-2 py-0.5 min-h-[26px] flex items-center justify-between font-bold text-xs bg-slate-50">
+                <span>✓ Included</span>
+                <span>{orderDetails.billing?.dc_amount > 0 ? `Rs. ${orderDetails.billing.dc_amount.toFixed(0)}` : ''}</span>
               </div>
             </div>
           )}
 
           {/* Amount Row */}
           <div className="flex items-center">
-            <div className="w-24 shrink-0 font-black text-sm">Amount :</div>
-            <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center justify-between font-black text-base bg-slate-50">
+            <div className="w-20 shrink-0 font-black text-xs">Amount :</div>
+            <div className="flex-1 border-2 border-black px-2 py-0.5 min-h-[26px] flex items-center justify-between font-black text-sm bg-slate-50">
               <span>Rs. {totalDisplay}</span>
-              {advanceDisplay !== '0.00' && <span className="text-xs font-normal text-slate-700">(Bal: Rs. {balanceDisplay})</span>}
+              {advanceDisplay !== '0.00' && <span className="text-[10px] font-normal text-slate-700">(Bal: Rs. {balanceDisplay})</span>}
             </div>
           </div>
 
           {/* In Date Row */}
           <div className="flex items-center">
-            <div className="w-24 shrink-0 font-black text-sm">In date :</div>
-            <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center font-bold text-sm bg-slate-50">
+            <div className="w-20 shrink-0 font-black text-xs">In date :</div>
+            <div className="flex-1 border-2 border-black px-2 py-0.5 min-h-[26px] flex items-center font-bold text-xs bg-slate-50">
               {inDate} {inTime}
             </div>
           </div>
 
           {/* Name Row */}
           <div className="flex items-center">
-            <div className="w-24 shrink-0 font-black text-sm">Name :</div>
-            <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center font-black text-sm uppercase bg-slate-50 truncate">
+            <div className="w-20 shrink-0 font-black text-xs">Name :</div>
+            <div className="flex-1 border-2 border-black px-2 py-0.5 min-h-[26px] flex items-center font-black text-xs uppercase bg-slate-50 truncate">
               {customerName}
             </div>
           </div>
 
           {/* Weight Row */}
           <div className="flex items-center">
-            <div className="w-24 shrink-0 font-black text-sm">Weight :</div>
-            <div className="flex-1 border-2 border-black px-2.5 py-1 min-h-[30px] flex items-center justify-between font-bold text-sm bg-slate-50">
+            <div className="w-20 shrink-0 font-black text-xs">Weight :</div>
+            <div className="flex-1 border-2 border-black px-2 py-0.5 min-h-[26px] flex items-center justify-between font-bold text-xs bg-slate-50">
               <span>{weightDisplay}</span>
-              <span className="text-xs text-slate-700">({qtyDisplay} pcs)</span>
+              <span className="text-[11px] text-slate-700">({qtyDisplay} pcs)</span>
             </div>
           </div>
 
           {/* Bill # Row */}
           <div className="flex items-center pt-0.5">
-            <div className="w-24 shrink-0 font-black text-sm">Bill # :</div>
-            <div className="flex-1 border-2 border-black px-2.5 py-1.5 min-h-[34px] flex items-center justify-center font-black text-2xl tracking-widest bg-slate-100">
+            <div className="w-20 shrink-0 font-black text-xs">Bill # :</div>
+            <div className="flex-1 border-2 border-black px-2 py-1 min-h-[30px] flex items-center justify-center font-black text-xl tracking-widest bg-slate-100">
               {billNumber}
             </div>
           </div>
@@ -491,19 +539,19 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
       </div>
 
       {/* QR Code Section (Always printed with Vendor slip) */}
-      <div className="flex flex-col items-center justify-center py-2.5 border-t-2 border-dashed border-black">
-        <div className="text-sm font-black uppercase tracking-wider mb-1">SCAN WHEN READY</div>
-        <div className="p-1.5 bg-white border-2 border-black rounded">
-          <QRCodeSVG value={payload.barcode || `WB-${billNumber}`} size={135} level="M" />
+      <div className="flex flex-col items-center justify-center py-1.5 border-t-2 border-dashed border-black">
+        <div className="text-xs font-black uppercase tracking-wider mb-0.5">SCAN WHEN READY</div>
+        <div className="p-1 bg-white border-2 border-black rounded">
+          <QRCodeSVG value={payload.barcode || `WB-${billNumber}`} size={105} level="M" />
         </div>
-        <div className="font-mono font-black text-sm mt-1 tracking-wider">{payload.barcode || `WB-${billNumber}`}</div>
-        <div className="text-[11px] font-bold uppercase tracking-widest mt-0.5 text-slate-700">
+        <div className="font-mono font-black text-xs mt-0.5 tracking-wider">{payload.barcode || `WB-${billNumber}`}</div>
+        <div className="text-[10px] font-bold uppercase tracking-widest text-slate-700">
           VENDOR COPY · ATTACH TO LAUNDRY SACK
         </div>
       </div>
 
-      {/* Paper Feed & Cutter Clearance Spacer - feeds 22mm blank paper so cutter never slices bottom barcode/tag */}
-      <div className="receipt-cutter-spacer w-full" style={{ minHeight: '18mm' }} aria-hidden="true"></div>
+      {/* Paper Feed & Cutter Clearance Spacer - snug 6mm blank feed */}
+      <div className="receipt-cutter-spacer w-full" style={{ minHeight: '6mm' }} aria-hidden="true"></div>
     </div>
   );
 

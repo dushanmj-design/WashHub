@@ -162,7 +162,7 @@ class Database {
       barcode_id, 
       customer_mobile: customer.mobile_number, 
       customer_name: customer.name,
-      workflow: payload.services ? Object.keys(payload.services).filter(k => payload.services[k]).join('_') : 'wash_dry_iron',
+      workflow: payload.services ? Object.keys(payload.services).filter(k => payload.services[k]).join('_') : 'wash_dry',
       weight: payload.specs.weight_kg, 
       pieces: payload.specs.quantity, 
       estimated_amount: payload.billing.total_amount, 
