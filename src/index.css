@@ -46,15 +46,15 @@
 
 /* Receipt cutter clearance spacer for 80mm thermal printers */
 .receipt-cutter-spacer {
-  height: 6px;
+  height: 20px;
   width: 100%;
 }
 
 @media print {
   .receipt-cutter-spacer {
     display: block !important;
-    height: 6mm !important;
-    min-height: 6mm !important;
+    height: 20mm !important;
+    min-height: 20mm !important;
     width: 100% !important;
     clear: both !important;
   }

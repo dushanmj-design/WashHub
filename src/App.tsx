@@ -398,9 +398,10 @@ const handleOrderIntake = async (orderData: {
             est_amount: o.estimated_amount,
             final_amount: finalAmount,
             received_cash: receivedCash,
-            shopName: activeTenant?.name || 'Wash Hub'
+            shopName: activeTenant?.name || 'Wash Hub',
+            supervisor_data: o.supervisor_data
           });
-      setActiveTab("operations");
+          setActiveTab("operations");
         }
       }
     } catch (err: any) {

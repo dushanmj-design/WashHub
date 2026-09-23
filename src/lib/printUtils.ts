@@ -39,19 +39,14 @@ export function printHtml(htmlContent: string, title: string) {
             print-color-adjust: exact !important;
           }
           @page { 
-            margin: 0mm !important; 
-            size: 80mm auto !important;
-          }
-          * {
-            box-sizing: border-box !important;
+            margin: 0mm !important;
           }
           html, body { 
-            background: white !important; 
-            color: black !important;
+            background: #ffffff !important; 
+            color: #000000 !important;
             margin: 0 !important; 
             padding: 0 !important;
             width: 100% !important;
-            min-width: 100% !important;
             font-family: Arial, Helvetica, sans-serif !important;
             display: block !important;
             -webkit-print-color-adjust: exact !important;
@@ -59,52 +54,61 @@ export function printHtml(htmlContent: string, title: string) {
           }
           @media print {
             @page {
-              size: 80mm auto !important;
               margin: 0mm !important;
             }
             html, body {
-              width: 76mm !important;
-              max-width: 76mm !important;
-              min-width: 76mm !important;
+              width: 72mm !important;
+              max-width: 72mm !important;
+              min-width: 72mm !important;
               margin: 0 auto !important;
               padding: 0 !important;
               color: #000000 !important;
               background: #ffffff !important;
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
+              height: auto !important;
+              overflow: visible !important;
             }
             .receipt-page { 
-              width: 76mm !important;
-              min-width: 76mm !important;
-              max-width: 76mm !important;
+              width: 72mm !important;
+              min-width: 72mm !important;
+              max-width: 72mm !important;
               padding: 0 !important;
               margin: 0 auto !important;
-              page-break-after: always;
-              break-after: page;
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+              -webkit-column-break-inside: avoid !important;
+              page-break-after: always !important;
+              break-after: page !important;
+              box-sizing: border-box !important;
+              overflow: visible !important;
             }
             /* Prevent duplicate cuts or tiny shredded strips after the final bill */
             .receipt-page:last-child,
             .receipt-page.receipt-page-last { 
-              page-break-after: auto !important;
-              break-after: auto !important;
+              page-break-after: avoid !important;
+              break-after: avoid !important;
             }
             /* Spacing for subsequent bills */
             .receipt-page + .receipt-page {
-              padding-top: 3mm !important;
+              padding-top: 1mm !important;
             }
             .receipt-content-wrapper { 
-              width: 76mm !important;
-              min-width: 76mm !important;
-              max-width: 76mm !important;
+              width: 72mm !important;
+              min-width: 72mm !important;
+              max-width: 72mm !important;
               margin: 0 auto !important;
-              padding: 1.5mm 1.5mm 0 1.5mm !important;
+              padding: 1mm 0.5mm 0 0.5mm !important;
               box-sizing: border-box !important;
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+              -webkit-column-break-inside: avoid !important;
+              overflow: visible !important;
             }
-            /* Feeds 6mm blank paper past thermal head so the auto cutter knife cuts cleanly without wasting space or splitting pages */
+            /* Feeds paper past thermal head so the auto cutter knife cuts cleanly without cutting receipt text */
             .receipt-cutter-spacer {
               display: block !important;
-              height: 6mm !important;
-              min-height: 6mm !important;
+              min-height: 8mm !important;
               width: 100% !important;
               clear: both !important;
             }

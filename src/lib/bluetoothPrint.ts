@@ -6,9 +6,9 @@ export function isWebBluetoothSupported(): boolean {
   return typeof navigator !== 'undefined' && 'bluetooth' in navigator;
 }
 
-export function printDirectRawBT(data: EscPosReceiptData): { success: boolean; message?: string } {
+export function printDirectRawBT(data: EscPosReceiptData, feedMm: number = 28): { success: boolean; message?: string } {
   try {
-    const bytes = buildEscPosPayload(data);
+    const bytes = buildEscPosPayload(data, feedMm);
     let binary = '';
     const len = bytes.byteLength;
     for (let i = 0; i < len; i++) {
@@ -16,6 +16,28 @@ export function printDirectRawBT(data: EscPosReceiptData): { success: boolean; m
     }
     const base64 = btoa(binary);
     // Direct RawBT protocol URI - passes raw ESC/POS commands directly into licensed RawBT
+    const rawbtUri = `rawbt:data:application/octet-stream;base64,${base64}`;
+    window.location.href = rawbtUri;
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, message: err.message || 'RawBT launch failed' };
+  }
+}
+
+export function printDirectRawBTBoth(custData: EscPosReceiptData, vendData: EscPosReceiptData, feedMm: number = 28): { success: boolean; message?: string } {
+  try {
+    const custBytes = buildEscPosPayload(custData, feedMm);
+    const vendBytes = buildEscPosPayload(vendData, feedMm);
+    const combined = new Uint8Array(custBytes.length + vendBytes.length);
+    combined.set(custBytes, 0);
+    combined.set(vendBytes, custBytes.length);
+
+    let binary = '';
+    const len = combined.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(combined[i]);
+    }
+    const base64 = btoa(binary);
     const rawbtUri = `rawbt:data:application/octet-stream;base64,${base64}`;
     window.location.href = rawbtUri;
     return { success: true };
@@ -122,7 +144,7 @@ export async function printDirectBluetooth(data: EscPosReceiptData): Promise<{ s
   }
 }
 
-export function buildEscPosPayload(data: EscPosReceiptData): Uint8Array {
+export function buildEscPosPayload(data: EscPosReceiptData, feedMm: number = 28): Uint8Array {
   const chunks: number[] = [];
 
   const encoder = new TextEncoder();
@@ -148,28 +170,26 @@ export function buildEscPosPayload(data: EscPosReceiptData): Uint8Array {
   
   if (data.isVendorCopy) {
     chunks.push(0x1B, 0x45, 0x01); // Bold ON
-    writeText(`\n[ VENDOR COPY / WORKSHOP TAG ]\n`);
-    writeText(`(${data.hasIron ? 'WASH . DRY . IRON' : 'WASH . DRY'})\n`);
+    writeText(`\n[ VENDOR TAG - ${data.hasIron ? 'WASH DRY IRON' : 'WASH DRY'} ]\n`);
     chunks.push(0x1B, 0x45, 0x00); // Bold OFF
+    writeText(`================================================\n`);
   } else {
     chunks.push(0x1B, 0x45, 0x01); // Bold ON
-    writeText(`\nCUSTOMER RECEIPT\n`);
+    writeText(`\nFINAL CUSTOMER BILL\n`);
     chunks.push(0x1B, 0x45, 0x00); // Bold OFF
+    writeText(`================================================\n`);
+
+    // 3. Bill & Metadata
+    chunks.push(0x1B, 0x61, 0x00); // Left align
+    chunks.push(0x1B, 0x45, 0x01); // Bold ON
+    writeText(`BILL #        : ${data.billNumber}\n`);
+    writeText(`CUSTOMER NAME : ${data.customerName}\n`);
+    writeText(`CONTACT #     : ${data.customerPhone}\n`);
+    writeText(`DATE          : ${data.date}\n`);
+    writeText(`WEIGHT        : Kg ${data.weight}${data.pieces ? ` (${data.pieces} pcs)` : ''}\n`);
+    chunks.push(0x1B, 0x45, 0x00); // Bold OFF
+    writeText(`------------------------------------------------\n`);
   }
-
-  writeText(`================================================\n`);
-
-  // 3. Bill & Metadata
-  chunks.push(0x1B, 0x61, 0x00); // Left align
-  chunks.push(0x1B, 0x45, 0x01); // Bold ON
-  writeText(`BILL #        : ${data.billNumber}\n`);
-  writeText(`CUSTOMER NAME : ${data.customerName}\n`);
-  writeText(`CONTACT #     : ${data.customerPhone}\n`);
-  writeText(`DATE          : ${data.date}\n`);
-  writeText(`WEIGHT        : Kg ${data.weight}${data.pieces ? ` (${data.pieces} pcs)` : ''}\n`);
-  chunks.push(0x1B, 0x45, 0x00); // Bold OFF
-
-  writeText(`------------------------------------------------\n`);
 
   if (data.isVendorCopy) {
     // VENDOR TAG (Matches Card Format with clear box borders)
@@ -250,9 +270,13 @@ export function buildEscPosPayload(data: EscPosReceiptData): Uint8Array {
     writeText(`- Check care labels before washing & drying\n`);
   }
 
-  // Feed paper past printhead-to-cutter knife distance (~24mm) before auto-cut
-  writeText(`\n\n\n\n\n\n\n\n`);
-  chunks.push(0x1D, 0x56, 0x41, 0x18); // GS V 'A' 24 (Feed 24 dots + Full cut)
+  // Feed paper past printhead-to-cutter knife distance (clean feed)
+  // 1 line of Font A with standard line spacing = ~4.23mm (1/6 inch)
+  const linesToFeed = Math.max(3, Math.min(8, Math.ceil(feedMm / 4.23)));
+  // ESC d n (Print and feed n lines)
+  chunks.push(0x1B, 0x64, linesToFeed);
+  // Universal full cut (GS V 0x00) & fallback partial cut (GS V 0x01)
+  chunks.push(0x1D, 0x56, 0x00);
 
   return new Uint8Array(chunks);
 }
