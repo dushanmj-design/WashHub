@@ -5,6 +5,7 @@ import net from 'net';
 import { createServer as createViteServer } from 'vite';
 import { db } from './src/database';
 import { WorkflowType } from './src/types';
+import { sendSMSGoMessage, getSMSGoStatus, normalizeSriLankanPhone } from './src/lib/smsService';
 
 async function startServer() {
   const app = express();
@@ -330,7 +331,35 @@ app.post('/api/orders', async (req: Request, res: Response) => {
     }
   });
 
-  // 8. Workflow updates via barcode scanning
+  // SMS Gateway Status Endpoint
+  app.get('/api/sms/status', async (req: Request, res: Response) => {
+    try {
+      const status = await getSMSGoStatus();
+      res.json(status);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // SMS Gateway Direct Test Endpoint
+  app.post('/api/sms/test', async (req: Request, res: Response) => {
+    const { to, message, mask } = req.body;
+    if (!to) {
+      return res.status(400).json({ error: 'Recipient phone number is required' });
+    }
+    try {
+      const result = await sendSMSGoMessage({
+        to,
+        message: message || 'Test message from Wash Hub via SMSGo gateway.',
+        mask
+      });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // 8. Workflow updates via barcode/QR scanning (Supervisor & Staff)
   app.patch('/api/orders/workflow/update', async (req: Request, res: Response) => {
     const { tenantId, userRole } = getTenantContext(req);
     if (!tenantId) {
@@ -343,13 +372,99 @@ app.post('/api/orders', async (req: Request, res: Response) => {
     }
 
     try {
-      const result = await db.updateOrderStatus(tenantId, barcode_id, userRole);
-      const phone = result.customer_mobile || (result as any).supervisor_data?.order_details?.customer?.telephone || 'Customer';
+      const order = await db.updateOrderStatus(tenantId, barcode_id, userRole);
+      
+      // Extract customer contact details
+      const rawPhone = order.customer_mobile || 
+                       (order as any).supervisor_data?.order_details?.customer?.telephone || 
+                       (order as any).supervisor_data?.customer?.telephone || 
+                       '';
+      
+      const customerName = order.customer_name || 
+                           (order as any).supervisor_data?.order_details?.customer?.name || 
+                           (order as any).supervisor_data?.customer?.name || 
+                           'Customer';
+      
+      const totalAmount = order.final_amount || 
+                          order.estimated_amount || 
+                          (order as any).supervisor_data?.order_details?.billing?.total_amount || 
+                          0;
+      
+      const advance = (order as any).supervisor_data?.order_details?.billing?.advance || 0;
+      const balance = Math.max(0, totalAmount - advance);
+      const balanceStr = balance > 0 ? `Rs. ${balance.toFixed(2)}` : 'PAID';
+
+      let shopName = 'Wash Hub';
+      try {
+        const tenant = await db.getTenant(tenantId);
+        if (tenant?.name) shopName = tenant.name;
+      } catch {
+        // Use default
+      }
+
+      // Format customer phone
+      const normalizedPhone = normalizeSriLankanPhone(rawPhone);
+      
+      // Compose SMS text
+      const smsMessage = `${shopName}: Hello ${customerName}, your laundry order #${barcode_id} is washed, packed, and READY FOR PICKUP! Balance: ${balanceStr}. Thank you!`;
+
+      // Trigger SMS dispatch through SMSGo Gateway
+      const smsResult = await sendSMSGoMessage({
+        to: rawPhone,
+        message: smsMessage,
+        campaignName: 'Supervisor_Scan'
+      });
+
+      // Update Firestore database notifications and order SMS record
+      if (smsResult.success) {
+        await db.createNotification(
+          tenantId,
+          `[SMS DISPATCHED via SMSGo] to ${smsResult.phone}: "${smsMessage}"`,
+          'info'
+        );
+        await db.updateOrderSmsStatus(order.id, {
+          sms_sent: true,
+          sms_phone: smsResult.phone,
+          sms_status: 'dispatched',
+          sms_dispatched_at: new Date().toISOString(),
+          sms_message: smsMessage
+        });
+      } else if (smsResult.reason === 'MASK_REQUIRED') {
+        await db.createNotification(
+          tenantId,
+          `[SMSGo Gateway Alert] Order ${barcode_id} ready. SMS queued for ${smsResult.phone}. Please register/approve an SMSGo Sender Mask (e.g. WashHub) in your smsgo.lk dashboard.`,
+          'warning'
+        );
+        await db.updateOrderSmsStatus(order.id, {
+          sms_sent: false,
+          sms_phone: smsResult.phone,
+          sms_status: 'mask_required',
+          sms_message: smsMessage
+        });
+      } else {
+        await db.createNotification(
+          tenantId,
+          `[SMSGo Gateway Notice] Order ${barcode_id} ready. SMS to ${smsResult.phone}: ${smsResult.error}`,
+          'warning'
+        );
+        await db.updateOrderSmsStatus(order.id, {
+          sms_sent: false,
+          sms_phone: smsResult.phone,
+          sms_status: 'error',
+          sms_message: smsMessage
+        });
+      }
+
       res.json({
-        ...result,
-        sms_sent: true,
-        customer_phone: phone,
-        sms_message: `Order ${barcode_id} is completed and ready for pickup. SMS successfully dispatched to ${phone}.`
+        ...order,
+        sms_sent: smsResult.success,
+        sms_dispatched: smsResult.success,
+        sms_provider: 'SMSGo.lk Gateway',
+        sms_reason: smsResult.reason,
+        customer_phone: smsResult.phone || rawPhone,
+        sms_message: smsMessage,
+        sms_error: smsResult.error,
+        sms_response: smsResult.response
       });
     } catch (err: any) {
       res.status(400).json({ error: err.message });

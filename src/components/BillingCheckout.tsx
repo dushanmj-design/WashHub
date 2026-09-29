@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Receipt, CheckSquare, Coins, AlertTriangle, ShieldAlert, Smile, Delete, Sparkles } from 'lucide-react';
+import { Receipt, CheckSquare, Coins, AlertTriangle, ShieldAlert, Smile, Delete, Sparkles, Camera, QrCode } from 'lucide-react';
 import { Order } from '../types';
 import { PaginatedList } from './PaginatedList';
+import CameraScanner from './CameraScanner';
 
 interface BillingCheckoutProps {
   orders: Order[];
@@ -20,6 +21,7 @@ export default function BillingCheckout({ orders, onCloseOrder, onScanReady, isL
   const [error, setError] = useState('');
 
   const [scanInput, setScanInput] = useState('');
+  const [showCamera, setShowCamera] = useState(false);
 
   const handleScanSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,18 +127,40 @@ export default function BillingCheckout({ orders, onCloseOrder, onScanReady, isL
       </div>
 
       
+      {showCamera && onScanReady && (
+        <CameraScanner
+          onScan={(decoded) => {
+            setShowCamera(false);
+            onScanReady(decoded);
+          }}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
+
       {onScanReady && (
-          <form onSubmit={handleScanSubmit} className="mb-6 p-4 rounded-xl border border-blue-200 bg-blue-50/50 flex gap-3 shadow-sm">
-            <input 
-              type="text" 
-              autoFocus 
-              value={scanInput} 
-              onChange={e => setScanInput(e.target.value)} 
-              placeholder="Scan Vendor QR (Barcode) here to mark as Ready for Pickup..." 
-              className="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm shadow-sm" 
-            />
-            <button type="submit" disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-lg transition shadow">
-              Mark Ready & SMS
+          <form onSubmit={handleScanSubmit} className="mb-6 p-4 rounded-xl border border-blue-200 bg-blue-50/50 flex flex-col sm:flex-row gap-3 shadow-sm">
+            <div className="relative flex-1">
+              <QrCode className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
+              <input 
+                type="text" 
+                autoFocus 
+                value={scanInput} 
+                onChange={e => setScanInput(e.target.value)} 
+                placeholder="Scan Vendor QR (Barcode) here to mark as Ready for Pickup..." 
+                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm shadow-sm bg-white" 
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowCamera(true)}
+              className="bg-cyan-700 hover:bg-cyan-800 text-white font-bold px-4 py-3 rounded-lg transition shadow flex items-center justify-center gap-2 cursor-pointer"
+              title="Scan with Camera"
+            >
+              <Camera className="h-4 w-4" />
+              <span>Camera Scan</span>
+            </button>
+            <button type="submit" disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-lg transition shadow flex items-center justify-center gap-2 cursor-pointer">
+              <span>Mark Ready & SMS</span>
             </button>
           </form>
       )}

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { QrCode, Search, CheckCircle2, ArrowRight, RefreshCw, Layers } from 'lucide-react';
+import { QrCode, Search, CheckCircle2, RefreshCw, Camera, MessageSquare, Smartphone, Send, Info } from 'lucide-react';
 import { Order, OrderStatus } from '../types';
 import CameraScanner from './CameraScanner';
+import SmsGatewayModal from './SmsGatewayModal';
 
 interface BarcodeScannerProps {
   orders: Order[];
@@ -13,6 +14,7 @@ export default function BarcodeScanner({ orders, onScanBarcode, isLoading }: Bar
   const [inputBarcode, setInputBarcode] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCamera, setShowCamera] = useState(false);
+  const [showSmsModal, setShowSmsModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 10;
 
@@ -79,13 +81,37 @@ export default function BarcodeScanner({ orders, onScanBarcode, isLoading }: Bar
       )}
       
       {/* Block Header */}
-      <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-        <div className="bg-cyan-100 text-cyan-700 p-2.5 rounded-xl">
-          <QrCode className="h-5 w-5" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="bg-cyan-100 text-cyan-700 p-2.5 rounded-xl">
+            <QrCode className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="font-display font-bold text-lg text-slate-950">Supervisor QR Scanner & SMS Dispatch</h3>
+            <p className="text-xs text-slate-500">Scan laundry sack QR code to complete order and dispatch customer pickup SMS.</p>
+          </div>
         </div>
-        <div>
-          <h3 className="font-display font-bold text-lg text-slate-950">QR Code Terminal & Scanner</h3>
-          <p className="text-xs text-slate-500">Simulate gun-scans to advance orders sequentially along active cycle paths.</p>
+
+        {/* SMSGo Gateway Status Pill */}
+        <button
+          onClick={() => setShowSmsModal(true)}
+          className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold transition cursor-pointer self-start sm:self-auto shadow-sm"
+        >
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <MessageSquare className="h-3.5 w-3.5 text-emerald-600" />
+          <span>SMS Gateway: Connected (SMSGo.lk)</span>
+        </button>
+      </div>
+
+      {showSmsModal && (
+        <SmsGatewayModal isOpen={showSmsModal} onClose={() => setShowSmsModal(false)} />
+      )}
+
+      {/* Info notice about QR scan and automated SMS dispatch */}
+      <div className="bg-cyan-50/70 border border-cyan-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-cyan-900">
+        <Smartphone className="h-4 w-4 text-cyan-600 shrink-0 mt-0.5" />
+        <div className="leading-relaxed">
+          <strong className="font-bold">Automated Customer SMS Dispatch:</strong> When you scan an order QR code, the order is updated to <strong>Ready for Pickup</strong> and an SMS notification is triggered via the <strong>SMSGo Gateway</strong> to the customer's phone number.
         </div>
       </div>
 
@@ -97,20 +123,32 @@ export default function BarcodeScanner({ orders, onScanBarcode, isLoading }: Bar
             ref={inputRef}
             autoFocus
             type="text"
-            placeholder="Scan gun input or paste QR code..."
+            placeholder="Scan gun input or paste QR code (e.g. WB-408123)..."
             value={inputBarcode}
             onChange={(e) => setInputBarcode(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-xl text-base pl-11 pr-4 py-3 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition font-mono uppercase"
             id="scan-input"
           />
         </div>
+        
+        {/* Camera Scanner Trigger Button */}
+        <button
+          type="button"
+          onClick={() => setShowCamera(true)}
+          className="px-5 py-3 bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-sm rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+          title="Scan using device camera"
+        >
+          <Camera className="h-4 w-4" />
+          <span>Scan Camera</span>
+        </button>
+
         <button
           type="submit"
           disabled={isLoading}
-          className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-base rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer w-full sm:w-auto min-h-[50px]"
+          className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer w-full sm:w-auto min-h-[50px]"
           id="trigger-scan-btn"
         >
-          <span>Activate Scanner</span>
+          <span>Submit Scan</span>
         </button>
       </form>
 
@@ -173,26 +211,26 @@ export default function BarcodeScanner({ orders, onScanBarcode, isLoading }: Bar
 
                     <div className="flex items-center gap-3">
                       
-                      {/* Interactive click-to-scan simulate trigger */}
+                      {/* Interactive scan trigger */}
                       <button
                         onClick={() => onScanBarcode(order.barcode_id)}
                         disabled={isLoading || isCompleted}
-                        className={`text-xs px-3 py-2 rounded-lg font-medium flex items-center gap-1.5 transition cursor-pointer ${
+                        className={`text-xs px-3 py-2 rounded-lg font-semibold flex items-center gap-1.5 transition cursor-pointer ${
                           isCompleted
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border border-cyan-100'
+                            : 'bg-cyan-700 text-white hover:bg-cyan-800 shadow-sm'
                         }`}
                         id={`simulate-scan-${order.id}`}
                       >
                         {isCompleted ? (
                           <>
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            <span>Ready for Settle</span>
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                            <span>Ready & SMS Sent</span>
                           </>
                         ) : (
                           <>
-                            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-                            <span>Simulate Scan</span>
+                            <Send className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                            <span>Scan & Send SMS</span>
                           </>
                         )}
                       </button>

@@ -54,6 +54,11 @@ class Database {
     return this.getAll<Tenant>('tenants');
   }
 
+  public async getTenant(tenantId: string): Promise<Tenant | null> {
+    const snap = await getDoc(doc(firestore, 'tenants', tenantId));
+    return snap.exists() ? (snap.data() as Tenant) : null;
+  }
+
   public async createTenant(name: string, subdomain: string): Promise<Tenant> {
     const id = 't-' + Date.now();
     return this.createDoc<Tenant>('tenants', id, { name, subdomain, created_at: new Date().toISOString() });
@@ -209,6 +214,12 @@ public async updateOrderStatus(tenantId: string, barcodeId: string, role?: strin
       throw new Error('Order is already delivered and closed');
     }
     return order;
+  }
+
+  public async updateOrderSmsStatus(orderId: string, smsData: { sms_sent: boolean; sms_phone?: string; sms_status?: string; sms_dispatched_at?: string; sms_message?: string }): Promise<void> {
+    const d = doc(firestore, 'orders', orderId);
+    const clean = Object.fromEntries(Object.entries(smsData).filter(([_, v]) => v !== undefined));
+    await setDoc(d, clean, { merge: true });
   }
 
   public async closeOrder(tenantId: string, orderId: string, finalAmount: number, receivedCash: number, role?: string): Promise<Order> {

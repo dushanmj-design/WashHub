@@ -11,7 +11,7 @@ import {
   RefreshCw,
   Building2,
   AlertTriangle,
-  WifiOff, CheckCircle2, FileText
+  WifiOff, CheckCircle2, FileText, Smartphone, MessageSquare, Send
 } from 'lucide-react';
 
 import { Tenant, UserRole, Order, CashLedger, SimulatedNotification } from './types';
@@ -53,6 +53,16 @@ export default function App() {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState("");
+  const [scanSuccessDetails, setScanSuccessDetails] = useState<{
+    barcodeId: string;
+    customerName: string;
+    customerPhone: string;
+    smsSent: boolean;
+    smsReason?: string;
+    smsError?: string;
+    smsMessage?: string;
+    status: string;
+  } | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   // 1. Initial Load: Get all tenants
@@ -352,9 +362,19 @@ const handleOrderIntake = async (orderData: {
         setStickerPayload(null);
         
         const targetPhone = result.customer_phone || result.customer_mobile || (result.order && result.order.customer_mobile) || 'Customer';
+        const targetCustomer = result.customer_name || (result.order && result.order.customer_name) || 'Customer';
         const statusDisplay = (result.status || 'READY FOR PICKUP').toUpperCase();
-        setSuccessMessage(`Order ${barcodeId} is ${statusDisplay}! Customer SMS dispatch confirmed to ${targetPhone}.`);
-        setTimeout(() => setSuccessMessage(''), 6000);
+        
+        setScanSuccessDetails({
+          barcodeId,
+          customerName: targetCustomer,
+          customerPhone: targetPhone,
+          smsSent: Boolean(result.sms_sent || result.sms_dispatched),
+          smsReason: result.sms_reason,
+          smsError: result.sms_error,
+          smsMessage: result.sms_message,
+          status: statusDisplay
+        });
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Barcode lookup failed');
@@ -518,21 +538,92 @@ const handleOrderIntake = async (orderData: {
           </div>
         )}
 
-        {/* Global Success Popup */}
-        {successMessage && (
+        {/* Scan & SMS Triggered Success Popup Modal */}
+        {(scanSuccessDetails || successMessage) && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
             <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl p-6 text-center border-2 border-emerald-500 shadow-emerald-500/20 flex flex-col items-center">
-              <div className="h-16 w-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4 ring-8 ring-emerald-50">
+              
+              <div className="h-16 w-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-3 ring-8 ring-emerald-50">
                 <CheckCircle2 className="h-9 w-9" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-1.5">Customer SMS Sent Successfully!</h3>
-              <p className="text-sm text-slate-600 font-medium mb-5">{successMessage}</p>
-              <button
-                onClick={() => setSuccessMessage('')}
-                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition cursor-pointer"
-              >
-                Done
-              </button>
+
+              {scanSuccessDetails ? (
+                <div className="w-full space-y-3">
+                  <div>
+                    <span className="font-mono text-xs font-bold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded border border-slate-200">
+                      {scanSuccessDetails.barcodeId}
+                    </span>
+                    <h3 className="text-lg font-bold text-slate-900 mt-1">
+                      Order is {scanSuccessDetails.status}!
+                    </h3>
+                  </div>
+
+                  {/* SMS Dispatch Info Block */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-left space-y-2">
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                      <span className="text-xs font-semibold text-slate-500">Recipient Phone:</span>
+                      <strong className="text-xs font-mono text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded border border-cyan-100 flex items-center gap-1">
+                        <Smartphone className="h-3 w-3" />
+                        {scanSuccessDetails.customerPhone}
+                      </strong>
+                    </div>
+
+                    <div className="text-xs text-slate-600 space-y-1">
+                      <span className="text-[11px] font-semibold text-slate-400 block">SMS Message Triggered:</span>
+                      <div className="bg-white p-2 rounded border border-slate-200 text-[11px] font-sans italic text-slate-700 leading-relaxed">
+                        "{scanSuccessDetails.smsMessage || `Wash Hub: Order #${scanSuccessDetails.barcodeId} is ready for pickup!`}"
+                      </div>
+                    </div>
+
+                    <div className="pt-1 flex items-center justify-between text-[11px]">
+                      <span className="text-slate-500">SMS Gateway:</span>
+                      {scanSuccessDetails.smsSent ? (
+                        <span className="font-bold text-emerald-600 flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Dispatched via SMSGo.lk
+                        </span>
+                      ) : scanSuccessDetails.smsReason === 'MASK_REQUIRED' ? (
+                        <span className="font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                          Pending Mask Approval (SMSGo)
+                        </span>
+                      ) : (
+                        <span className="font-semibold text-slate-700">
+                          SMSGo Gateway Connected
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {scanSuccessDetails.smsReason === 'MASK_REQUIRED' && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-left text-[11px] text-amber-800 space-y-0.5">
+                      <p className="font-bold">Notice from SMSGo.lk Gateway:</p>
+                      <p>Sandbox request processed. SMSGo requires an approved Sender Mask (e.g. <em>WashHub</em>) registered in your smsgo.lk account before sending to phones.</p>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setScanSuccessDetails(null);
+                      setSuccessMessage('');
+                    }}
+                    className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition cursor-pointer text-sm"
+                  >
+                    Done
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <h3 className="text-xl font-bold text-slate-900 mb-1.5">Action Confirmed</h3>
+                  <p className="text-sm text-slate-600 font-medium mb-5">{successMessage}</p>
+                  <button
+                    onClick={() => setSuccessMessage('')}
+                    className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition cursor-pointer"
+                  >
+                    Done
+                  </button>
+                </>
+              )}
+
             </div>
           </div>
         )}
@@ -563,7 +654,7 @@ const handleOrderIntake = async (orderData: {
             <PlusCircle className="h-4 w-4" />
             <span>{activeRole === 'supervisor' ? 'New Order' : 'Cycle Operations'}</span>
           </button>
-          {(activeRole !== 'supervisor') && (
+
           <button
             onClick={() => setActiveTab('scan')}
             className={`py-2.5 px-4 text-sm font-medium border-b-2 transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
@@ -574,9 +665,8 @@ const handleOrderIntake = async (orderData: {
             id="tab-scan"
           >
             <QrCode className="h-4 w-4" />
-            <span>Scan Workflow</span>
+            <span>{activeRole === 'supervisor' ? 'Scan QR & SMS' : 'Scan Workflow'}</span>
           </button>
-        )}
 
           <button
             onClick={() => setActiveTab('billing')}
