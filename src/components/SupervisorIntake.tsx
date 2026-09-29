@@ -135,7 +135,7 @@ export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: S
         {/* Header */}
         <header className="bg-slate-900 text-slate-100 p-4 sm:p-5 shrink-0">
           <div className="flex justify-between items-center mb-4">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-wide text-white">Wash hub (Pvt) LTD.</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-wide text-white">WashHub (Pvt) LTD.</h1>
             <div className="text-xs sm:text-sm font-semibold opacity-90 text-right">
               <div>TEL: 011-1234567</div>
             </div>

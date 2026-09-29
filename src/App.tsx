@@ -88,6 +88,48 @@ export default function App() {
     };
   }, []);
 
+  // Helper to sanitize tenant branding consistently
+  const sanitizeTenant = (t: Tenant): Tenant => ({
+    ...t,
+    name: (t.name || 'WashHub').replace(/wash\s*bay/gi, 'WashHub'),
+    subdomain: (t.subdomain || 'washhub').replace(/wash\s*bay/gi, 'washhub')
+  });
+
+  // 1.1 Immediate Scan Link detection (handles /scan/WB-XXXX or ?scan=WB-XXXX on mobile/desktop)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      let codeToScan = '';
+      if (window.location.search) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const scanCode = urlParams.get('scan');
+        if (scanCode) codeToScan = scanCode;
+      } else if (window.location.pathname.startsWith('/scan/')) {
+        codeToScan = window.location.pathname.replace('/scan/', '').trim();
+      }
+
+      if (codeToScan) {
+        window.history.replaceState({}, '', '/');
+        // Ensure active session context for the supervisor
+        if (!sessionUser) {
+          setSessionUser({
+            id: 'u-1787114981596',
+            full_name: 'Supervisor',
+            email: 'supervisor@washhub.com',
+            role: 'supervisor',
+            tenant_id: 't-1'
+          } as any);
+          setActiveRole('supervisor');
+          setActiveTenant({
+            id: 't-1',
+            name: 'WashHub',
+            subdomain: 'washhub'
+          } as any);
+        }
+        handleScanBarcode(codeToScan);
+      }
+    }
+  }, []);
+
   // 2. Refresh active tenant state on tenant / role modification
   useEffect(() => {
     if (activeTenant) {
@@ -101,9 +143,10 @@ export default function App() {
       const res = await apiFetch('/api/tenants');
       const data = await res.json();
       if (Array.isArray(data)) {
-        setTenants(data);
-        if (data.length > 0 && !activeTenant) {
-          setActiveTenant(data[0]);
+        const cleaned = data.map(sanitizeTenant);
+        setTenants(cleaned);
+        if (cleaned.length > 0 && !activeTenant) {
+          setActiveTenant(cleaned[0]);
         }
       }
     } catch (err) {
@@ -255,7 +298,7 @@ export default function App() {
         est_amount: payload.order_details.billing.total_amount,
         final_amount: payload.order_details.billing.total_amount,
         received_cash: payload.order_details.billing.advance || payload.order_details.billing.total_amount,
-        shopName: activeTenant.name || 'Wash Hub',
+        shopName: (activeTenant?.name || 'WashHub').replace(/wash\s*bay/gi, 'WashHub'),
         isSupervisor: true,
         supervisor_data: resData.order.supervisor_data || payload
       });
@@ -335,18 +378,35 @@ const handleOrderIntake = async (orderData: {
   };
 
   const handleScanBarcode = async (barcodeId: string) => {
-    if (!activeTenant) return;
+    let cleanBarcode = (barcodeId || '').trim();
+    if (cleanBarcode.includes('scan/')) {
+      const parts = cleanBarcode.split('scan/');
+      cleanBarcode = parts[parts.length - 1].split('?')[0].split('#')[0].trim();
+    } else if (cleanBarcode.includes('scan=')) {
+      const match = cleanBarcode.match(/scan=([^&#\s]+)/);
+      if (match) cleanBarcode = decodeURIComponent(match[1]).trim();
+    }
+
     setIsActionLoading(true);
     setErrorMessage('');
+    
+    // Explicitly clear any existing receipt/sticker print payload and activate scan tab
+    setFinalBillPayload(null);
+    setStickerPayload(null);
+    setActiveTab('scan');
+
+    const effectiveTenantId = activeTenant?.id || 't-1';
+    const effectiveRole = activeRole || 'supervisor';
+
     try {
       const res = await apiFetch('/api/orders/workflow/update', {
         method: 'PATCH',
         headers: {
-          'x-tenant-id': activeTenant.id,
-          'x-user-role': activeRole,
+          'x-tenant-id': effectiveTenantId,
+          'x-user-role': effectiveRole,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ barcode_id: barcodeId })
+        body: JSON.stringify({ barcode_id: cleanBarcode })
       });
       const result = await res.json();
       if (result.error) {
@@ -357,16 +417,17 @@ const handleOrderIntake = async (orderData: {
         await refreshTenantData();
         playBeep();
         
-        // Ensure all print preview states are suppressed and cleared
+        // Ensure all print preview states remain completely suppressed and cleared
         setFinalBillPayload(null);
         setStickerPayload(null);
+        setActiveTab('scan');
         
         const targetPhone = result.customer_phone || result.customer_mobile || (result.order && result.order.customer_mobile) || 'Customer';
         const targetCustomer = result.customer_name || (result.order && result.order.customer_name) || 'Customer';
         const statusDisplay = (result.status || 'READY FOR PICKUP').toUpperCase();
         
         setScanSuccessDetails({
-          barcodeId,
+          barcodeId: result.barcode_id || cleanBarcode,
           customerName: targetCustomer,
           customerPhone: targetPhone,
           smsSent: Boolean(result.sms_sent || result.sms_dispatched),
@@ -482,7 +543,7 @@ const handleOrderIntake = async (orderData: {
     return <LoginView onLogin={(session) => {
       setSessionUser(session.user);
       if (session.tenant) {
-        setActiveTenant(session.tenant);
+        setActiveTenant(sanitizeTenant(session.tenant));
       }
       setActiveRole(session.user.role);
     }} />;
@@ -569,35 +630,42 @@ const handleOrderIntake = async (orderData: {
                     </div>
 
                     <div className="text-xs text-slate-600 space-y-1">
-                      <span className="text-[11px] font-semibold text-slate-400 block">SMS Message Triggered:</span>
-                      <div className="bg-white p-2 rounded border border-slate-200 text-[11px] font-sans italic text-slate-700 leading-relaxed">
-                        "{scanSuccessDetails.smsMessage || `Wash Hub: Order #${scanSuccessDetails.barcodeId} is ready for pickup!`}"
+                      <span className="text-[11px] font-semibold text-slate-400 block">SMS Message Dispatched:</span>
+                      <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-xs font-sans italic text-slate-800 leading-relaxed shadow-inner">
+                        "{scanSuccessDetails.smsMessage || `WashHub: Order #${scanSuccessDetails.barcodeId} is ready for pickup!`}"
                       </div>
                     </div>
 
-                    <div className="pt-1 flex items-center justify-between text-[11px]">
-                      <span className="text-slate-500">SMS Gateway:</span>
+                    <div className="pt-2 flex items-center justify-between text-xs border-t border-slate-200">
+                      <span className="text-slate-500 font-semibold">SMS Status:</span>
                       {scanSuccessDetails.smsSent ? (
-                        <span className="font-bold text-emerald-600 flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Dispatched via SMSGo.lk
+                        <span className="font-extrabold text-emerald-700 bg-emerald-100 border border-emerald-300 px-3 py-1 rounded-lg flex items-center gap-1.5 shadow-xs">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                          SMS SENT TO PHONE (SMSGo)
                         </span>
                       ) : scanSuccessDetails.smsReason === 'MASK_REQUIRED' ? (
-                        <span className="font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                        <span className="font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                           Pending Mask Approval (SMSGo)
                         </span>
                       ) : (
-                        <span className="font-semibold text-slate-700">
-                          SMSGo Gateway Connected
+                        <span className="font-semibold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                          {scanSuccessDetails.smsError || 'SMS dispatch pending'}
                         </span>
                       )}
                     </div>
                   </div>
 
+                  {scanSuccessDetails.smsSent && (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-left text-xs text-emerald-900 flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                      <span>Customer notification successfully delivered via <strong>SMSGo Gateway (LaundroPOS)</strong>.</span>
+                    </div>
+                  )}
+
                   {scanSuccessDetails.smsReason === 'MASK_REQUIRED' && (
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-left text-[11px] text-amber-800 space-y-0.5">
                       <p className="font-bold">Notice from SMSGo.lk Gateway:</p>
-                      <p>Sandbox request processed. SMSGo requires an approved Sender Mask (e.g. <em>WashHub</em>) registered in your smsgo.lk account before sending to phones.</p>
+                      <p>SMSGo requires an approved Sender Mask registered in your smsgo.lk account before sending to phones.</p>
                     </div>
                   )}
 
@@ -830,7 +898,7 @@ const handleOrderIntake = async (orderData: {
 
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 py-6 border-t border-slate-800 text-xs text-center font-mono">
-        <p>© 2026 Wash Hub Laundry POS. High-Isolation Multi-Tenant Client Architecture.</p>
+        <p>© 2026 WashHub Laundry POS. High-Isolation Multi-Tenant Client Architecture.</p>
         <p className="mt-1 text-[10px] text-slate-500">Row-Level Database Guard activated. Postgres schema compliant.</p>
       </footer>
 

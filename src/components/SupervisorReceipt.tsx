@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Printer, Check, Scissors, HelpCircle, Bluetooth, Tag, ReceiptText, Wifi, Zap } from 'lucide-react';
+import { Printer, Check, Bluetooth, Tag, ReceiptText, Wifi, Zap } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { printHtml } from '../lib/printUtils';
 import { printDirectBluetooth, printDirectRawBT, printDirectRawBTBoth, isWebBluetoothSupported, buildEscPosPayload } from '../lib/bluetoothPrint';
@@ -14,12 +14,11 @@ interface SupervisorReceiptProps {
 
 export default function SupervisorReceipt({ payload, onClose, inline }: SupervisorReceiptProps) {
   const [activePreviewTab, setActivePreviewTab] = useState<'customer' | 'vendor'>('customer');
-  const [showTipsModal, setShowTipsModal] = useState(false);
   const [showNetworkModal, setShowNetworkModal] = useState(false);
   const [networkPrinter, setNetworkPrinter] = useState<NetworkPrinterConfig | null>(null);
   const [btStatus, setBtStatus] = useState<string | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
-  const [cutterFeedMm, setCutterFeedMm] = useState<number>(10);
+  const [cutterFeedMm, setCutterFeedMm] = useState<number>(75);
 
   useEffect(() => {
     const saved = getSavedNetworkPrinter();
@@ -236,7 +235,7 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
       <div className="receipt-content-wrapper bg-white text-black font-sans w-full p-1" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
         {/* Brand Header matching original bill */}
         <div className="text-center pb-0.5 border-b border-black">
-          <h1 className="text-lg font-black tracking-tight leading-none uppercase font-serif">Wash Hub</h1>
+          <h1 className="text-lg font-black tracking-tight leading-none uppercase font-serif">{(payload.shopName || 'WashHub').replace(/wash\s*bay/gi, 'WashHub')}</h1>
           <div className="text-[9px] font-bold italic tracking-tight mt-0.5 text-slate-900 leading-tight">We do your laundry right - all day every day</div>
           <div className="text-[8.5px] font-semibold text-slate-800 leading-tight">
             101/C, Galle Road, Mount Lavinia. Tel: {shopPhone}
@@ -438,8 +437,20 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
           </p>
         </div>
 
-        {/* Paper Feed & Cutter Clearance Spacer - customizable feed clears knife blade */}
-        <div className="receipt-cutter-spacer w-full" style={{ minHeight: `${cutterFeedMm}mm`, height: `${cutterFeedMm}mm` }} aria-hidden="true"></div>
+        {/* End of slip boundary marker to prevent premature driver cut */}
+        <div className="text-center font-mono text-[9px] text-slate-500 py-1 border-t border-dotted border-black/40 mt-1">
+          - - - - - END OF CUSTOMER BILL - - - - -
+        </div>
+
+        {/* Paper Feed & Cutter Clearance Spacer - 75mm physical blank feed ensures no cut into receipt */}
+        <div className="receipt-cutter-spacer w-full" style={{ minHeight: `${cutterFeedMm}mm`, height: `${cutterFeedMm}mm`, display: 'block', clear: 'both' }} aria-hidden="true">
+          <div style={{ height: `${cutterFeedMm}mm`, minHeight: `${cutterFeedMm}mm`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', color: 'transparent', userSelect: 'none' }}>
+            <div style={{ fontSize: '14px', lineHeight: '18mm' }}>&nbsp;</div>
+            <div style={{ fontSize: '14px', lineHeight: '18mm' }}>&nbsp;</div>
+            <div style={{ fontSize: '14px', lineHeight: '18mm' }}>&nbsp;</div>
+            <div style={{ fontSize: '14px', lineHeight: '18mm' }}>&nbsp;</div>
+          </div>
+        </div>
       </div>
     );
   };
@@ -453,7 +464,7 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
         {/* Brand & Phone Block */}
         <div className="flex justify-between items-start border-b border-black pb-0.5 mb-0.5">
           <div>
-            <h2 className="text-lg font-black uppercase tracking-tight leading-none">Wash Hub</h2>
+            <h2 className="text-lg font-black uppercase tracking-tight leading-none">{payload.shopName || 'WashHub'}</h2>
             <div className="text-[9px] font-bold text-slate-800 mt-0.5">Tel: {shopPhone}</div>
           </div>
           <div className="text-right">
@@ -554,7 +565,7 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
       <div className="flex flex-col items-center justify-center py-1 border-t border-dashed border-black">
         <div className="text-[10px] font-black uppercase tracking-wider mb-0.5">SCAN WHEN READY</div>
         <div className="p-0.5 bg-white border border-black rounded">
-          <QRCodeSVG value={payload.barcode || `WB-${billNumber}`} size={68} level="M" />
+          <QRCodeSVG value={typeof window !== 'undefined' ? `${window.location.origin}/scan/${encodeURIComponent(payload.barcode || `WB-${billNumber}`)}` : (payload.barcode || `WB-${billNumber}`)} size={68} level="M" />
         </div>
         <div className="font-mono font-black text-[11px] mt-0.5 tracking-wider">{payload.barcode || `WB-${billNumber}`}</div>
         <div className="text-[9px] font-bold uppercase tracking-widest text-slate-700">
@@ -562,8 +573,20 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
         </div>
       </div>
 
-      {/* Paper Feed & Cutter Clearance Spacer - customizable feed clears knife blade */}
-      <div className="receipt-cutter-spacer w-full" style={{ minHeight: `${cutterFeedMm}mm`, height: `${cutterFeedMm}mm` }} aria-hidden="true"></div>
+      {/* End of slip boundary marker to prevent premature driver cut */}
+      <div className="text-center font-mono text-[9px] text-slate-500 py-1 border-t border-dotted border-black/40 mt-1">
+        - - - - - END OF VENDOR TAG - - - - -
+      </div>
+
+      {/* Paper Feed & Cutter Clearance Spacer - 75mm physical blank feed ensures no cut into receipt */}
+      <div className="receipt-cutter-spacer w-full" style={{ minHeight: `${cutterFeedMm}mm`, height: `${cutterFeedMm}mm`, display: 'block', clear: 'both' }} aria-hidden="true">
+        <div style={{ height: `${cutterFeedMm}mm`, minHeight: `${cutterFeedMm}mm`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', color: 'transparent', userSelect: 'none' }}>
+          <div style={{ fontSize: '14px', lineHeight: '18mm' }}>&nbsp;</div>
+          <div style={{ fontSize: '14px', lineHeight: '18mm' }}>&nbsp;</div>
+          <div style={{ fontSize: '14px', lineHeight: '18mm' }}>&nbsp;</div>
+          <div style={{ fontSize: '14px', lineHeight: '18mm' }}>&nbsp;</div>
+        </div>
+      </div>
     </div>
   );
 
@@ -596,13 +619,6 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
             </span>
           </button>
 
-          <button
-            onClick={() => setShowTipsModal(!showTipsModal)}
-            title="Printer Tips & RawBT Watermark Removal"
-            className="p-1.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition-colors"
-          >
-            <HelpCircle className="w-5 h-5" />
-          </button>
           <button onClick={onClose} className="p-1.5 hover:bg-slate-800 rounded transition-colors text-slate-300">
             <Check className="h-5 w-5" />
           </button>
@@ -635,98 +651,11 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
         </button>
       </div>
 
-      {/* Auto-Cutter Clearance Spacing Control & Cut Fix Guide Bar */}
-      <div className="bg-slate-50 border-b border-slate-200 px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 text-xs shrink-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1 text-slate-700 font-bold">
-            <Scissors className="w-3.5 h-3.5 text-slate-500" />
-            <span>Paper Feed Before Cut:</span>
-          </div>
-          <div className="inline-flex rounded-md shadow-xs bg-white border border-slate-300 p-0.5">
-            {[
-              { val: 6, label: '6mm', desc: 'Ultra Compact (Fit Short Paper)' },
-              { val: 10, label: '10mm (Std)', desc: 'Standard 80mm POS Roll' },
-              { val: 15, label: '15mm', desc: 'Extended Feed' },
-              { val: 20, label: '20mm', desc: 'Full Knife Clearance' }
-            ].map(item => (
-              <button
-                key={item.val}
-                type="button"
-                onClick={() => setCutterFeedMm(item.val)}
-                className={`px-2 py-0.5 rounded text-[11px] font-bold transition cursor-pointer ${
-                  cutterFeedMm === item.val
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-                title={`Advances ${item.val}mm blank paper past thermal head so auto-cutter knife never cuts receipt text (${item.desc})`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setShowTipsModal(!showTipsModal)}
-          className="flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 px-2 py-1 rounded border border-amber-300 transition cursor-pointer"
-        >
-          <HelpCircle className="w-3.5 h-3.5 text-amber-700" />
-          <span>Why does it cut before end? (Fix Guide)</span>
-        </button>
-      </div>
-
       {/* Bluetooth Status Toast */}
       {btStatus && (
         <div className="bg-blue-50 border-b border-blue-200 px-3 py-1.5 text-xs text-blue-900 font-medium flex items-center justify-between">
           <span>{btStatus}</span>
           <button onClick={() => setBtStatus(null)} className="text-blue-500 font-bold ml-2">✕</button>
-        </div>
-      )}
-
-      {/* Comprehensive Manual Settings & Premature Cut Fix Guide */}
-      {showTipsModal && (
-        <div className="bg-amber-50 border-b border-amber-200 p-3.5 text-xs text-amber-950 space-y-2.5 shrink-0 max-h-72 overflow-y-auto">
-          <div className="font-black flex items-center justify-between text-amber-900 text-sm">
-            <div className="flex items-center gap-1.5">
-              <Scissors className="w-4 h-4 text-amber-700" />
-              <span>How to Fix Receipts Cutting Before the End (2 Simple Solutions)</span>
-            </div>
-            <button 
-              onClick={() => setShowTipsModal(false)}
-              className="text-amber-800 hover:text-amber-950 font-bold px-1.5 py-0.5 rounded hover:bg-amber-100 cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] text-amber-900 leading-relaxed">
-            <div className="bg-white/90 p-2.5 rounded-lg border border-amber-200 space-y-1">
-              <strong className="text-amber-950 block text-xs">A. Why Thermal Printers Cut Before End:</strong>
-              <p className="text-slate-800">
-                In thermal printers, the physical cutting blade sits <strong>20mm to 25mm downstream</strong> from the thermal printhead. If the paper does not feed enough after printing the last line, the knife cuts before the bill exits!
-              </p>
-              <div className="bg-emerald-50 text-emerald-900 p-1.5 rounded border border-emerald-200 mt-1 font-medium">
-                👉 <strong>Solution:</strong> Select <strong>22mm (Std)</strong> or <strong>28mm (Clear)</strong> on the top bar above. This feeds the bill completely past the cutting blade before the cut executes.
-              </div>
-            </div>
-
-            <div className="bg-white/90 p-2.5 rounded-lg border border-amber-200 space-y-1">
-              <strong className="text-amber-950 block text-xs">B. RawBT App Settings (For 100% Perfect Cut):</strong>
-              <ul className="list-disc list-inside space-y-1 text-slate-800">
-                <li>Open <strong>RawBT app</strong> → <strong>Settings → Printer</strong></li>
-                <li>Tap <strong>"Feed before cut" / "Paper feed after print"</strong>: Set to <strong>4 - 6 lines (20mm - 25mm)</strong>.</li>
-                <li>Tap <strong>"Paper cut"</strong>: Choose <span className="font-bold text-black">"At the end of job"</span> (Do NOT choose "At each page").</li>
-                <li>Under <strong>Paper format</strong>: Ensure it is set to <span className="font-bold text-black">80mm (576 dots)</span>.</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="bg-amber-100/70 p-2 rounded text-[11px] text-amber-950 flex flex-wrap items-center justify-between gap-2">
-            <span>
-              ⚡ <strong>Best Method:</strong> Click the orange <strong>"RawBT Both (80mm)"</strong> button below. It streams native ESC/POS thermal cut commands directly to RawBT, advancing 20mm and executing clean cuts for both slips with zero browser split!
-            </span>
-          </div>
         </div>
       )}
 
@@ -760,75 +689,75 @@ export default function SupervisorReceipt({ payload, onClose, inline }: Supervis
       </div>
       
       {/* Footer Controls */}
-      <div className="p-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-2 shrink-0">
-        <div className="text-[11px] text-slate-500 flex items-center gap-1.5 self-start sm:self-center">
-          <Scissors className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          <span>Single copies trigger automatic printer paper cut</span>
-        </div>
-        
-        <div className="flex flex-wrap items-center justify-end gap-1.5 w-full sm:w-auto">
-          <button
-            onClick={onClose}
-            className="px-2.5 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
-          >
-            Close
-          </button>
-          
-          <button
-            onClick={handlePrintCustomer}
-            title="Prints Customer Copy and cuts paper"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-500 transition-colors"
-          >
-            <Printer className="h-3.5 w-3.5" />
-            <span>Customer (Cut)</span>
-          </button>
-          
-          <button
-            onClick={handlePrintVendor}
-            title="Prints Vendor Copy with QR code and cuts paper"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 rounded-lg shadow-sm hover:bg-emerald-500 transition-colors"
-          >
-            <Tag className="h-3.5 w-3.5" />
-            <span>Vendor Tag (Cut)</span>
-          </button>
-          
+      <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex flex-col gap-3 shrink-0">
+        {/* Primary Action Button - Ultra Large & High Visibility */}
+        <div className="w-full flex flex-col gap-2">
           <button
             onClick={handlePrintBoth}
-            title="Prints both Customer and Vendor copies"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-slate-800 rounded-lg shadow-sm hover:bg-slate-700 transition-colors"
+            title="Prints both Customer Slip and Vendor Tag copies on 80mm roll"
+            className="w-full flex items-center justify-center gap-3.5 py-4 sm:py-5 px-6 min-h-[64px] text-lg sm:text-xl font-black tracking-wide text-white bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 active:scale-[0.99] rounded-2xl shadow-xl shadow-emerald-600/40 ring-4 ring-emerald-400/60 hover:ring-emerald-300 transition-all cursor-pointer"
           >
-            <Printer className="h-3.5 w-3.5" />
-            <span>Print Both</span>
+            <Printer className="h-7 w-7 sm:h-8 sm:w-8 shrink-0 text-white" />
+            <div className="flex flex-col items-center sm:items-start text-left leading-tight">
+              <span className="text-base sm:text-xl font-black uppercase tracking-wider">PRINT BOTH COPIES (80mm)</span>
+              <span className="text-[11px] sm:text-xs text-emerald-100 font-medium">Customer Bill + Sack Vendor Tag</span>
+            </div>
           </button>
-
-          <button
-            onClick={() => handleRawBtPrint(activePreviewTab === 'vendor')}
-            title="Opens licensed RawBT app with direct 80mm native ESC/POS thermal command stream for current preview slip"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-900 bg-amber-100 border border-amber-300 rounded-lg shadow-sm hover:bg-amber-200 transition-colors cursor-pointer"
-          >
-            <Zap className="h-3.5 w-3.5 text-amber-700 fill-amber-600" />
-            <span>RawBT {activePreviewTab === 'vendor' ? 'Vendor' : 'Customer'}</span>
-          </button>
-
-          <button
-            onClick={handleRawBtPrintBoth}
-            title="Opens licensed RawBT app and prints both Customer and Vendor slips with clean 20mm advance and auto-cut"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-950 bg-amber-200 border border-amber-400 rounded-lg shadow-sm hover:bg-amber-300 transition-colors cursor-pointer"
-          >
-            <Zap className="h-3.5 w-3.5 text-amber-800 fill-amber-700" />
-            <span>RawBT Both (80mm)</span>
-          </button>
-
-          {isWebBluetoothSupported() && (
+          
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => handleBluetoothPrint(activePreviewTab === 'vendor')}
-              title="Prints directly to Bluetooth printer with NO RawBT app watermark"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg shadow-sm hover:bg-indigo-100 transition-colors"
+              onClick={handleRawBtPrintBoth}
+              title="Direct RawBT Print (Both Slips)"
+              className="flex-1 flex items-center justify-center gap-2 py-3 px-4 text-sm font-extrabold text-amber-950 bg-amber-300 hover:bg-amber-400 border-2 border-amber-500 rounded-xl shadow-md transition-colors cursor-pointer"
             >
-              <Bluetooth className="h-3.5 w-3.5 text-indigo-600" />
-              <span>Direct BT</span>
+              <Zap className="h-4 w-4 text-amber-900 fill-amber-700" />
+              <span>RawBT Both Slips</span>
             </button>
-          )}
+            {isWebBluetoothSupported() && (
+              <button
+                onClick={() => handleBluetoothPrint(activePreviewTab === 'vendor')}
+                title="Prints directly to Bluetooth printer with NO RawBT app watermark"
+                className="flex items-center gap-1.5 px-3 py-3 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-xl shadow-sm hover:bg-indigo-100 transition-colors cursor-pointer"
+              >
+                <Bluetooth className="h-4 w-4 text-indigo-600" />
+                <span>Direct BT</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Secondary Actions Row */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200 text-xs">
+          <div className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">
+            Individual Slips:
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handlePrintCustomer}
+              title="Prints Customer Copy only"
+              className="flex items-center gap-1.5 px-3 py-1.5 font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors cursor-pointer"
+            >
+              <Printer className="h-3.5 w-3.5 text-blue-600" />
+              <span>Customer Copy</span>
+            </button>
+            
+            <button
+              onClick={handlePrintVendor}
+              title="Prints Vendor Copy with QR code only"
+              className="flex items-center gap-1.5 px-3 py-1.5 font-bold text-slate-700 bg-slate-100 border border-slate-300 rounded-xl hover:bg-slate-200 transition-colors cursor-pointer"
+            >
+              <Tag className="h-3.5 w-3.5 text-slate-600" />
+              <span>Vendor Tag</span>
+            </button>
+
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 font-bold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
 

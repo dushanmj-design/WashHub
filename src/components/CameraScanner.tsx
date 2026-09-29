@@ -24,7 +24,15 @@ export default function CameraScanner({ onScan, onClose }: CameraScannerProps) {
       (decodedText) => {
         if (!isScanned.current) {
           isScanned.current = true;
-          onScan(decodedText);
+          let clean = decodedText.trim();
+          if (clean.includes('scan/')) {
+            const parts = clean.split('scan/');
+            clean = parts[parts.length - 1].split('?')[0].split('#')[0].trim();
+          } else if (clean.includes('scan=')) {
+            const match = clean.match(/scan=([^&#\s]+)/);
+            if (match) clean = decodeURIComponent(match[1]).trim();
+          }
+          onScan(clean);
         }
       },
       (errorMessage) => {

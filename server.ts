@@ -31,7 +31,12 @@ async function startServer() {
   app.get('/api/tenants', async (req: Request, res: Response) => {
     try {
       const list = await db.getTenants();
-      res.json(list);
+      const sanitized = list.map((t: any) => ({
+        ...t,
+        name: (t.name || 'WashHub').replace(/wash\s*bay/gi, 'WashHub'),
+        subdomain: (t.subdomain || 'washhub').replace(/wash\s*bay/gi, 'washhub')
+      }));
+      res.json(sanitized);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -71,6 +76,10 @@ async function startServer() {
     }
     try {
       const session = await db.loginUser(email, password);
+      if (session && session.tenant) {
+        session.tenant.name = (session.tenant.name || 'WashHub').replace(/wash\s*bay/gi, 'WashHub');
+        session.tenant.subdomain = (session.tenant.subdomain || 'washhub').replace(/wash\s*bay/gi, 'washhub');
+      }
       res.json(session);
     } catch (err: any) {
       res.status(401).json({ error: err.message });
@@ -359,115 +368,256 @@ app.post('/api/orders', async (req: Request, res: Response) => {
     }
   });
 
-  // 8. Workflow updates via barcode/QR scanning (Supervisor & Staff)
-  app.patch('/api/orders/workflow/update', async (req: Request, res: Response) => {
-    const { tenantId, userRole } = getTenantContext(req);
-    if (!tenantId) {
-      return res.status(400).json({ error: 'Missing active Tenant ID header' });
+  // Helper: Process order completion and SMS dispatch via SMSGo
+  async function processOrderReadyAndSms(tenantId: string, barcode_id: string, userRole: string = 'supervisor') {
+    let cleanBarcode = (barcode_id || '').trim();
+    if (cleanBarcode.includes('scan/')) {
+      const parts = cleanBarcode.split('scan/');
+      cleanBarcode = parts[parts.length - 1].split('?')[0].split('#')[0].trim();
+    } else if (cleanBarcode.includes('scan=')) {
+      const m = cleanBarcode.match(/scan=([^&#\s]+)/);
+      if (m) cleanBarcode = decodeURIComponent(m[1]).trim();
     }
 
-    const { barcode_id } = req.body;
+    const effectiveTenantId = tenantId || 't-1';
+    const order = await db.updateOrderStatus(effectiveTenantId, cleanBarcode, userRole);
+    
+    // Extract customer contact details
+    const rawPhone = order.customer_mobile || 
+                     (order as any).supervisor_data?.order_details?.customer?.telephone || 
+                     (order as any).supervisor_data?.customer?.telephone || 
+                     '';
+    
+    const customerName = order.customer_name || 
+                         (order as any).supervisor_data?.order_details?.customer?.name || 
+                         (order as any).supervisor_data?.customer?.name || 
+                         'Customer';
+    
+    const totalAmount = order.final_amount || 
+                        order.estimated_amount || 
+                        (order as any).supervisor_data?.order_details?.billing?.total_amount || 
+                        0;
+    
+    const advance = (order as any).supervisor_data?.order_details?.billing?.advance || 0;
+    const balance = Math.max(0, totalAmount - advance);
+    const balanceStr = balance > 0 ? `Rs. ${balance.toFixed(2)}` : 'PAID';
+
+    let shopName = 'WashHub';
+    try {
+      const tenant = await db.getTenant(order.tenant_id || effectiveTenantId);
+      if (tenant?.name) shopName = tenant.name;
+    } catch {
+      // Use default
+    }
+    shopName = (shopName || 'WashHub').replace(/wash\s*bay/gi, 'WashHub');
+
+    // Compose SMS text (without balance as requested)
+    const smsMessage = `${shopName}: Hello ${customerName}, your laundry order #${order.barcode_id || cleanBarcode} is washed, packed, and READY FOR PICKUP! Thank you!`;
+
+    // Trigger SMS dispatch through SMSGo Gateway
+    const smsResult = await sendSMSGoMessage({
+      to: rawPhone,
+      message: smsMessage,
+      campaignName: 'Supervisor_Scan'
+    });
+
+    // Update Firestore database notifications and order SMS record
+    if (smsResult.success) {
+      await db.createNotification(
+        order.tenant_id || effectiveTenantId,
+        `[SMS DISPATCHED via SMSGo] to ${smsResult.phone}: "${smsMessage}"`,
+        'info'
+      );
+      await db.updateOrderSmsStatus(order.id, {
+        sms_sent: true,
+        sms_phone: smsResult.phone,
+        sms_status: 'dispatched',
+        sms_dispatched_at: new Date().toISOString(),
+        sms_message: smsMessage
+      });
+    } else if (smsResult.reason === 'MASK_REQUIRED') {
+      await db.createNotification(
+        order.tenant_id || effectiveTenantId,
+        `[SMSGo Gateway Alert] Order ${cleanBarcode} ready. SMS queued for ${smsResult.phone}. Please register/approve an SMSGo Sender Mask (e.g. WashHub) in your smsgo.lk dashboard.`,
+        'warning'
+      );
+      await db.updateOrderSmsStatus(order.id, {
+        sms_sent: false,
+        sms_phone: smsResult.phone,
+        sms_status: 'mask_required',
+        sms_message: smsMessage
+      });
+    } else {
+      await db.createNotification(
+        order.tenant_id || effectiveTenantId,
+        `[SMSGo Gateway Notice] Order ${cleanBarcode} ready. SMS to ${smsResult.phone}: ${smsResult.error}`,
+        'warning'
+      );
+      await db.updateOrderSmsStatus(order.id, {
+        sms_sent: false,
+        sms_phone: smsResult.phone,
+        sms_status: 'error',
+        sms_message: smsMessage
+      });
+    }
+
+    return {
+      order,
+      cleanBarcode,
+      customerName,
+      rawPhone,
+      phone: smsResult.phone || rawPhone,
+      smsMessage,
+      smsResult,
+      balanceStr,
+      shopName
+    };
+  }
+
+  // 8. Workflow updates via barcode/QR scanning (Supervisor & Staff)
+  app.all(['/api/orders/workflow/update', '/api/orders/scan'], async (req: Request, res: Response) => {
+    const { tenantId, userRole } = getTenantContext(req);
+    const barcode_id = req.body?.barcode_id || req.body?.barcode || req.query?.barcode || (req.body && typeof req.body === 'string' ? req.body : '');
     if (!barcode_id) {
       return res.status(400).json({ error: 'Barcode ID is required' });
     }
 
     try {
-      const order = await db.updateOrderStatus(tenantId, barcode_id, userRole);
-      
-      // Extract customer contact details
-      const rawPhone = order.customer_mobile || 
-                       (order as any).supervisor_data?.order_details?.customer?.telephone || 
-                       (order as any).supervisor_data?.customer?.telephone || 
-                       '';
-      
-      const customerName = order.customer_name || 
-                           (order as any).supervisor_data?.order_details?.customer?.name || 
-                           (order as any).supervisor_data?.customer?.name || 
-                           'Customer';
-      
-      const totalAmount = order.final_amount || 
-                          order.estimated_amount || 
-                          (order as any).supervisor_data?.order_details?.billing?.total_amount || 
-                          0;
-      
-      const advance = (order as any).supervisor_data?.order_details?.billing?.advance || 0;
-      const balance = Math.max(0, totalAmount - advance);
-      const balanceStr = balance > 0 ? `Rs. ${balance.toFixed(2)}` : 'PAID';
-
-      let shopName = 'Wash Hub';
-      try {
-        const tenant = await db.getTenant(tenantId);
-        if (tenant?.name) shopName = tenant.name;
-      } catch {
-        // Use default
-      }
-
-      // Format customer phone
-      const normalizedPhone = normalizeSriLankanPhone(rawPhone);
-      
-      // Compose SMS text
-      const smsMessage = `${shopName}: Hello ${customerName}, your laundry order #${barcode_id} is washed, packed, and READY FOR PICKUP! Balance: ${balanceStr}. Thank you!`;
-
-      // Trigger SMS dispatch through SMSGo Gateway
-      const smsResult = await sendSMSGoMessage({
-        to: rawPhone,
-        message: smsMessage,
-        campaignName: 'Supervisor_Scan'
-      });
-
-      // Update Firestore database notifications and order SMS record
-      if (smsResult.success) {
-        await db.createNotification(
-          tenantId,
-          `[SMS DISPATCHED via SMSGo] to ${smsResult.phone}: "${smsMessage}"`,
-          'info'
-        );
-        await db.updateOrderSmsStatus(order.id, {
-          sms_sent: true,
-          sms_phone: smsResult.phone,
-          sms_status: 'dispatched',
-          sms_dispatched_at: new Date().toISOString(),
-          sms_message: smsMessage
-        });
-      } else if (smsResult.reason === 'MASK_REQUIRED') {
-        await db.createNotification(
-          tenantId,
-          `[SMSGo Gateway Alert] Order ${barcode_id} ready. SMS queued for ${smsResult.phone}. Please register/approve an SMSGo Sender Mask (e.g. WashHub) in your smsgo.lk dashboard.`,
-          'warning'
-        );
-        await db.updateOrderSmsStatus(order.id, {
-          sms_sent: false,
-          sms_phone: smsResult.phone,
-          sms_status: 'mask_required',
-          sms_message: smsMessage
-        });
-      } else {
-        await db.createNotification(
-          tenantId,
-          `[SMSGo Gateway Notice] Order ${barcode_id} ready. SMS to ${smsResult.phone}: ${smsResult.error}`,
-          'warning'
-        );
-        await db.updateOrderSmsStatus(order.id, {
-          sms_sent: false,
-          sms_phone: smsResult.phone,
-          sms_status: 'error',
-          sms_message: smsMessage
-        });
-      }
-
+      const data = await processOrderReadyAndSms(tenantId || 't-1', barcode_id, userRole);
       res.json({
-        ...order,
-        sms_sent: smsResult.success,
-        sms_dispatched: smsResult.success,
+        ...data.order,
+        barcode_id: data.cleanBarcode,
+        sms_sent: data.smsResult.success,
+        sms_dispatched: data.smsResult.success,
         sms_provider: 'SMSGo.lk Gateway',
-        sms_reason: smsResult.reason,
-        customer_phone: smsResult.phone || rawPhone,
-        sms_message: smsMessage,
-        sms_error: smsResult.error,
-        sms_response: smsResult.response
+        sms_reason: data.smsResult.reason,
+        customer_phone: data.phone,
+        sms_message: data.smsMessage,
+        sms_error: data.smsResult.error,
+        sms_response: data.smsResult.response
       });
     } catch (err: any) {
       res.status(400).json({ error: err.message });
+    }
+  });
+
+  // 8.1 Public QR Scan Endpoint (handles phone camera scans directly without login barriers)
+  app.all(['/scan/:barcode', '/api/scan-public/:barcode'], async (req: Request, res: Response) => {
+    const { barcode } = req.params;
+    const isApiRequest = req.path.startsWith('/api/') || req.headers.accept?.includes('application/json');
+
+    try {
+      const data = await processOrderReadyAndSms('t-1', barcode, 'supervisor');
+
+      if (isApiRequest) {
+        return res.json({
+          success: true,
+          ...data.order,
+          barcode_id: data.cleanBarcode,
+          sms_sent: data.smsResult.success,
+          sms_dispatched: data.smsResult.success,
+          sms_provider: 'SMSGo.lk Gateway',
+          sms_reason: data.smsResult.reason,
+          customer_phone: data.phone,
+          sms_message: data.smsMessage,
+          sms_error: data.smsResult.error
+        });
+      }
+
+      // Render standalone, responsive mobile HTML confirmation screen
+      const isSuccess = data.smsResult.success;
+      res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Ready & SMS Dispatched - ${data.shopName}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4 font-sans">
+  <div class="max-w-md w-full bg-white text-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-emerald-600 to-teal-600 p-6 text-white text-center">
+      <div class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 ring-8 ring-white/10">
+        <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+        </svg>
+      </div>
+      <h1 class="text-2xl font-black uppercase tracking-tight">${data.shopName}</h1>
+      <p class="text-emerald-100 font-medium text-sm mt-0.5">Order #${data.cleanBarcode} is Marked Ready!</p>
+    </div>
+
+    <!-- Body Content -->
+    <div class="p-6 space-y-4">
+      <!-- Status Banner -->
+      <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-emerald-950 flex items-start gap-3">
+        <svg class="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <div>
+          <strong class="font-extrabold text-sm block">SMS Successfully Dispatched</strong>
+          <span class="text-xs text-emerald-800">Customer notified via SMSGo Gateway (Mask: LaundroPOS).</span>
+        </div>
+      </div>
+
+      <!-- Order & SMS Meta Card -->
+      <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2.5 text-xs text-slate-700">
+        <div class="flex justify-between items-center pb-2 border-b border-slate-200">
+          <span class="font-bold text-slate-500 uppercase">Customer Name:</span>
+          <span class="font-mono font-bold text-slate-900">${data.customerName}</span>
+        </div>
+        <div class="flex justify-between items-center pb-2 border-b border-slate-200">
+          <span class="font-bold text-slate-500 uppercase">Mobile Phone:</span>
+          <span class="font-mono font-bold text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded border border-cyan-200">${data.phone}</span>
+        </div>
+        <div class="flex justify-between items-center pb-2 border-b border-slate-200">
+          <span class="font-bold text-slate-500 uppercase">Order Status:</span>
+          <span class="font-black text-emerald-700 uppercase bg-emerald-100 px-2 py-0.5 rounded">READY FOR PICKUP</span>
+        </div>
+        <div class="flex justify-between items-center pb-2 border-b border-slate-200">
+          <span class="font-bold text-slate-500 uppercase">Balance Due:</span>
+          <span class="font-mono font-black text-slate-900 text-sm">${data.balanceStr}</span>
+        </div>
+        <div class="space-y-1 pt-1">
+          <span class="font-bold text-slate-500 uppercase block text-[10px]">Dispatched SMS Message:</span>
+          <div class="bg-white p-3 rounded-xl border border-slate-200 font-sans italic text-slate-800 text-[11px] leading-relaxed shadow-inner">
+            "${data.smsMessage}"
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Button -->
+      <a href="/" class="block w-full text-center py-3.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-black text-sm rounded-xl shadow-md transition-all">
+        Open WashHub POS Console
+      </a>
+    </div>
+  </div>
+</body>
+</html>`);
+    } catch (err: any) {
+      if (isApiRequest) {
+        return res.status(404).json({ error: err.message || 'Order not found' });
+      }
+      res.status(404).send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${err.message || 'Order Notice'} - WashHub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4">
+  <div class="max-w-md w-full bg-white text-slate-900 rounded-3xl shadow-2xl p-6 text-center">
+    <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3">
+      <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    </div>
+    <h2 class="text-xl font-bold text-slate-900">${err.message || 'Order Notice'}</h2>
+    <p class="text-sm text-slate-500 mt-1">Barcode: <strong class="font-mono">${barcode}</strong></p>
+    <p class="text-xs text-slate-500 mt-2">${err.message?.includes('delivered') ? 'This order has already been marked as collected and delivered to the customer.' : 'Could not locate an active laundry order with this barcode.'}</p>
+    <a href="/" class="mt-5 inline-block py-2.5 px-6 bg-slate-900 text-white font-bold rounded-xl text-sm">Return to POS</a>
+  </div>
+</body>
+</html>`);
     }
   });
 

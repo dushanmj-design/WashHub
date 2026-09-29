@@ -108,9 +108,12 @@ export function printHtml(htmlContent: string, title: string) {
             /* Feeds paper past thermal head so the auto cutter knife cuts cleanly without cutting receipt text */
             .receipt-cutter-spacer {
               display: block !important;
-              min-height: 8mm !important;
+              min-height: 75mm !important;
+              height: 75mm !important;
               width: 100% !important;
               clear: both !important;
+              margin: 0 !important;
+              padding: 0 !important;
             }
             .receipt-content-wrapper * {
               box-sizing: border-box !important;

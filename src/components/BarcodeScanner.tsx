@@ -22,11 +22,19 @@ export default function BarcodeScanner({ orders, onScanBarcode, isLoading }: Bar
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!inputBarcode.trim()) {
+    let clean = inputBarcode.trim();
+    if (!clean) {
       setShowCamera(true);
       return;
     }
-    onScanBarcode(inputBarcode.trim());
+    if (clean.includes('scan/')) {
+      const parts = clean.split('scan/');
+      clean = parts[parts.length - 1].split('?')[0].split('#')[0].trim();
+    } else if (clean.includes('scan=')) {
+      const match = clean.match(/scan=([^&#\s]+)/);
+      if (match) clean = decodeURIComponent(match[1]).trim();
+    }
+    onScanBarcode(clean);
     setInputBarcode('');
     
     // Keep focus on input for continuous scanning

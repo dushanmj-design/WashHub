@@ -133,7 +133,7 @@ class Database {
     };
     await this.createDoc<Order>('orders', id, newOrder);
 
-    let shopName = 'Wash Hub';
+    let shopName = 'WashHub';
     const ts = await getDoc(doc(firestore, 'tenants', tenantId));
     if (ts.exists()) {
       shopName = ts.data().name || shopName;
@@ -148,9 +148,41 @@ class Database {
   }
 
   public async getOrderByBarcode(tenantId: string, barcodeId: string, role?: string): Promise<Order | undefined> {
-    const q = query(collection(firestore, 'orders'), where('tenant_id', '==', tenantId), where('barcode_id', '==', barcodeId));
-    const snap = await getDocs(q);
-    return snap.empty ? undefined : snap.docs[0].data() as Order;
+    let raw = (barcodeId || '').trim();
+    // If a full URL is scanned (e.g. https://.../scan/WB-123456 or https://.../?scan=WB-123456)
+    if (raw.includes('scan/')) {
+      const parts = raw.split('scan/');
+      raw = parts[parts.length - 1].split('?')[0].split('#')[0].trim();
+    } else if (raw.includes('scan=')) {
+      const match = raw.match(/scan=([^&#\s]+)/);
+      if (match) raw = decodeURIComponent(match[1]).trim();
+    }
+    const cleanUpper = raw.toUpperCase();
+    const candidateVariants = [
+      raw,
+      cleanUpper,
+      cleanUpper.startsWith('WB-') ? cleanUpper : `WB-${cleanUpper}`,
+      cleanUpper.replace(/^WB-/, '')
+    ];
+
+    // Try each variant within tenant
+    for (const code of Array.from(new Set(candidateVariants))) {
+      const q = query(collection(firestore, 'orders'), where('tenant_id', '==', tenantId), where('barcode_id', '==', code));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        return snap.docs[0].data() as Order;
+      }
+    }
+
+    // Fallback: search across all orders by barcode_id regardless of tenant context
+    for (const code of Array.from(new Set(candidateVariants))) {
+      const q = query(collection(firestore, 'orders'), where('barcode_id', '==', code));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        return snap.docs[0].data() as Order;
+      }
+    }
+    return undefined;
   }
 
   

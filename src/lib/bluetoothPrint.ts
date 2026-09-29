@@ -6,7 +6,7 @@ export function isWebBluetoothSupported(): boolean {
   return typeof navigator !== 'undefined' && 'bluetooth' in navigator;
 }
 
-export function printDirectRawBT(data: EscPosReceiptData, feedMm: number = 28): { success: boolean; message?: string } {
+export function printDirectRawBT(data: EscPosReceiptData, feedMm: number = 55): { success: boolean; message?: string } {
   try {
     const bytes = buildEscPosPayload(data, feedMm);
     let binary = '';
@@ -24,7 +24,7 @@ export function printDirectRawBT(data: EscPosReceiptData, feedMm: number = 28): 
   }
 }
 
-export function printDirectRawBTBoth(custData: EscPosReceiptData, vendData: EscPosReceiptData, feedMm: number = 28): { success: boolean; message?: string } {
+export function printDirectRawBTBoth(custData: EscPosReceiptData, vendData: EscPosReceiptData, feedMm: number = 55): { success: boolean; message?: string } {
   try {
     const custBytes = buildEscPosPayload(custData, feedMm);
     const vendBytes = buildEscPosPayload(vendData, feedMm);
@@ -271,12 +271,13 @@ export function buildEscPosPayload(data: EscPosReceiptData, feedMm: number = 28)
   }
 
   // Feed paper past printhead-to-cutter knife distance (clean feed)
-  // 1 line of Font A with standard line spacing = ~4.23mm (1/6 inch)
-  const linesToFeed = Math.max(3, Math.min(8, Math.ceil(feedMm / 4.23)));
+  // Ensure generous paper feed (70-75mm) so neither text, table nor QR code is sliced by the knife
+  const linesToFeed = Math.max(18, Math.min(28, Math.ceil((feedMm || 75) / 3.8)));
+  writeText('\n\n\n\n\n\n\n\n');
   // ESC d n (Print and feed n lines)
   chunks.push(0x1B, 0x64, linesToFeed);
-  // Universal full cut (GS V 0x00) & fallback partial cut (GS V 0x01)
-  chunks.push(0x1D, 0x56, 0x00);
+  // Feed paper to cutter knife and cut: GS V 'A' 24 (0x1D, 0x56, 0x41, 0x18)
+  chunks.push(0x1D, 0x56, 0x41, 0x18);
 
   return new Uint8Array(chunks);
 }

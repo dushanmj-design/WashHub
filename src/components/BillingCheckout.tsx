@@ -25,9 +25,17 @@ export default function BillingCheckout({ orders, onCloseOrder, onScanReady, isL
 
   const handleScanSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!scanInput.trim() || !onScanReady) return;
+    let clean = scanInput.trim();
+    if (!clean || !onScanReady) return;
+    if (clean.includes('scan/')) {
+      const parts = clean.split('scan/');
+      clean = parts[parts.length - 1].split('?')[0].split('#')[0].trim();
+    } else if (clean.includes('scan=')) {
+      const match = clean.match(/scan=([^&#\s]+)/);
+      if (match) clean = decodeURIComponent(match[1]).trim();
+    }
     try {
-      await onScanReady(scanInput.trim());
+      await onScanReady(clean);
       setScanInput('');
     } catch (err) {
       // API error handled upstream
