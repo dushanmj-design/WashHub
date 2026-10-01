@@ -350,7 +350,12 @@ export default function BillingCheckout({ orders, onCloseOrder, onScanReady, isL
               </p>
             </div>
           ) : (
-            <form onSubmit={handleCheckoutSubmit} className="space-y-4" id="billing-form">
+            <form 
+              onSubmit={handleCheckoutSubmit} 
+              onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+              className="space-y-4" 
+              id="billing-form"
+            >
               {/* Sidebar Header */}
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div>

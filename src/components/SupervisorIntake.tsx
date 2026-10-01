@@ -122,7 +122,11 @@ export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: S
   };
 
   return (
-    <form onSubmit={handleFormSubmit} className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden w-full flex flex-col lg:flex-row text-slate-800 font-sans">
+    <form 
+      onSubmit={handleFormSubmit} 
+      onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+      className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden w-full flex flex-col lg:flex-row text-slate-800 font-sans"
+    >
       <style dangerouslySetInnerHTML={{__html: `
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

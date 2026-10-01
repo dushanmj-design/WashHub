@@ -378,6 +378,7 @@ app.post('/api/orders', async (req: Request, res: Response) => {
       const m = cleanBarcode.match(/scan=([^&#\s]+)/);
       if (m) cleanBarcode = decodeURIComponent(m[1]).trim();
     }
+    cleanBarcode = decodeURIComponent(cleanBarcode).replace(/[^A-Za-z0-9_-]/g, '').trim();
 
     const effectiveTenantId = tenantId || 't-1';
     const order = await db.updateOrderStatus(effectiveTenantId, cleanBarcode, userRole);

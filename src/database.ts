@@ -157,6 +157,7 @@ class Database {
       const match = raw.match(/scan=([^&#\s]+)/);
       if (match) raw = decodeURIComponent(match[1]).trim();
     }
+    raw = decodeURIComponent(raw).replace(/[^A-Za-z0-9_-]/g, '').trim();
     const cleanUpper = raw.toUpperCase();
     const candidateVariants = [
       raw,
@@ -238,12 +239,10 @@ public async updateOrderStatus(tenantId: string, barcodeId: string, role?: strin
       
       const phone = order.customer_mobile || ((order as any).supervisor_data?.order_details?.customer?.telephone) || 'Unknown';
       await this.createNotification(tenantId, `[SMS SENT] to ${phone}: Order ${barcodeId} is washed, ironed and READY FOR PICKUP!`, 'info');
-    } else if (order.status === 'completed') {
-      // Re-trigger SMS confirmation for already completed orders
+    } else if (order.status === 'completed' || order.status === 'delivered') {
+      // Re-trigger SMS confirmation for already completed/delivered orders
       const phone = order.customer_mobile || ((order as any).supervisor_data?.order_details?.customer?.telephone) || 'Customer';
       await this.createNotification(tenantId, `[SMS RE-CONFIRMED] to ${phone}: Order ${barcodeId} is ready for pickup!`, 'info');
-    } else {
-      throw new Error('Order is already delivered and closed');
     }
     return order;
   }

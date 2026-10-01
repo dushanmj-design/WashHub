@@ -129,8 +129,77 @@ export default function App() {
       }
     }
   }, []);
+ 
+  // 1.2 Global Hardware Bluetooth / USB Barcode Scanner Listener
+  // Intercepts rapid keyboard streams sent by Bluetooth handheld scanners anywhere in the POS
+  useEffect(() => {
+    let scanBuffer = '';
+    let lastKeyTime = 0;
+    let clearTimer: any = null;
 
-  // 2. Refresh active tenant state on tenant / role modification
+    const handleHardwareScan = (e: KeyboardEvent) => {
+      const now = Date.now();
+      const timeSinceLast = now - lastKeyTime;
+      lastKeyTime = now;
+
+      // Hardware scanners typically emit characters in rapid bursts (< 65ms between keys)
+      // If idle for more than 75ms and buffer does not look like an ongoing barcode, reset
+      if (timeSinceLast > 75 && scanBuffer.length > 0 && !scanBuffer.toUpperCase().includes('WB') && !scanBuffer.includes('/scan/')) {
+        scanBuffer = '';
+      }
+
+      if (e.key === 'Enter') {
+        const raw = scanBuffer.trim();
+        // Check if the buffered input corresponds to a barcode or QR URL
+        if (
+          raw.length >= 4 &&
+          (raw.toUpperCase().includes('WB') ||
+           raw.includes('/scan/') ||
+           raw.includes('scan=') ||
+           timeSinceLast < 65)
+        ) {
+          // CRITICAL: Stop the Enter key from triggering ANY button click, form submit, or bill print!
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+
+          scanBuffer = '';
+
+          // If the hardware scanner typed into an active input field, clean and blur it
+          const activeEl = document.activeElement as HTMLInputElement;
+          if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+            if (activeEl.value && (activeEl.value.includes(raw) || activeEl.value.toUpperCase().includes('WB') || activeEl.value.includes('/scan/'))) {
+              activeEl.value = activeEl.value.replace(raw, '').replace(/https?:\/\/[^\s]+/g, '').trim();
+            }
+            activeEl.blur();
+          }
+
+          // Trigger order completion and SMS dispatch immediately
+          handleScanBarcode(raw);
+          return;
+        }
+        scanBuffer = '';
+        return;
+      }
+
+      // Buffer single printable characters
+      if (e.key.length === 1) {
+        scanBuffer += e.key;
+
+        // Auto-clear buffer if no Enter arrives within 1.5 seconds
+        clearTimeout(clearTimer);
+        clearTimer = setTimeout(() => {
+          scanBuffer = '';
+        }, 1500);
+      }
+    };
+
+    window.addEventListener('keydown', handleHardwareScan, true);
+    return () => {
+      window.removeEventListener('keydown', handleHardwareScan, true);
+      clearTimeout(clearTimer);
+    };
+  }, [activeTenant, activeRole]);
   useEffect(() => {
     if (activeTenant) {
       refreshTenantData();
@@ -385,6 +454,10 @@ const handleOrderIntake = async (orderData: {
     } else if (cleanBarcode.includes('scan=')) {
       const match = cleanBarcode.match(/scan=([^&#\s]+)/);
       if (match) cleanBarcode = decodeURIComponent(match[1]).trim();
+    }
+    cleanBarcode = decodeURIComponent(cleanBarcode).replace(/[^A-Za-z0-9_-]/g, '').trim();
+    if (/^WB\d+$/i.test(cleanBarcode)) {
+      cleanBarcode = `WB-${cleanBarcode.slice(2)}`;
     }
 
     setIsActionLoading(true);
