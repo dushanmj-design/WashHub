@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Receipt, CheckSquare, Coins, AlertTriangle, ShieldAlert, Smile, Delete, Sparkles } from 'lucide-react';
+import { Receipt, CheckSquare, Coins, AlertTriangle, ShieldAlert, Smile, Delete, Sparkles, Calendar, RotateCcw } from 'lucide-react';
 import { Order } from '../types';
 import { PaginatedList } from './PaginatedList';
 
@@ -17,10 +17,19 @@ export default function BillingCheckout({ orders, onCloseOrder, isLoading }: Bil
   const [receivedCash, setReceivedCash] = useState('');
   const [activeField, setActiveField] = useState<SettleFieldName>('finalAmount');
   const [error, setError] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
-
-  // Only completed orders can be checked out
-  const readyOrders = orders.filter((o) => o.status === 'completed');
+  // Only completed orders can be checked out, filtered by date range and sorted latest order first
+  const readyOrders = orders
+    .filter((o) => {
+      if (o.status !== 'completed') return false;
+      const orderDateStr = o.created_at ? o.created_at.slice(0, 10) : '';
+      if (startDate && orderDateStr && orderDateStr < startDate) return false;
+      if (endDate && orderDateStr && orderDateStr > endDate) return false;
+      return true;
+    })
+    .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
 
   const handleSelectOrder = (order: Order) => {
     setSelectedOrder(order);
@@ -115,10 +124,71 @@ export default function BillingCheckout({ orders, onCloseOrder, isLoading }: Bil
 
         
         {/* Left Side: Orders Picker Rack & Invoice Parameters */}
-        <div className="xl:col-span-7 space-y-5">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-            Completed Laundry Bags Ready for Pickup ({readyOrders.length})
-          </span>
+        <div className="xl:col-span-7 space-y-4">
+          {/* Header & Date Range Filter Bar */}
+          <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-3 sm:p-4 space-y-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Receipt className="h-3.5 w-3.5 text-cyan-600" />
+                <span>Ready Bags ({readyOrders.length})</span>
+                <span className="text-[10px] font-normal normal-case text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-full">
+                  Latest first
+                </span>
+              </span>
+
+              {/* Quick Today selector */}
+              <button
+                type="button"
+                onClick={() => {
+                  const todayStr = new Date().toISOString().slice(0, 10);
+                  setStartDate(todayStr);
+                  setEndDate(todayStr);
+                }}
+                className="text-[11px] font-bold text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 px-2.5 py-1 rounded-lg transition cursor-pointer self-start sm:self-auto"
+              >
+                Today's Orders
+              </button>
+            </div>
+
+            {/* Start and End Date Inputs */}
+            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-200/70">
+              <div className="flex items-center gap-1.5 bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 shadow-2xs">
+                <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                <span className="text-[10px] font-bold text-slate-500 uppercase">From</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="text-xs font-medium text-slate-800 bg-transparent outline-none cursor-pointer"
+                  id="checkout-start-date"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 shadow-2xs">
+                <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                <span className="text-[10px] font-bold text-slate-500 uppercase">To</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="text-xs font-medium text-slate-800 bg-transparent outline-none cursor-pointer"
+                  id="checkout-end-date"
+                />
+              </div>
+
+              {(startDate || endDate) && (
+                <button
+                  type="button"
+                  onClick={() => { setStartDate(''); setEndDate(''); }}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl border border-rose-200 transition cursor-pointer shadow-2xs"
+                  title="Clear date filter"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  <span>Clear Filter</span>
+                </button>
+              )}
+            </div>
+          </div>
           
           {readyOrders.length === 0 ? (
             <div className="py-12 px-4 text-center text-slate-500 border-2 border-dashed border-slate-200 rounded-2xl text-sm bg-slate-50/50" id="empty-completed-alert">

@@ -14,10 +14,10 @@ export default function BarcodeScanner({ orders, onScanBarcode, isLoading }: Bar
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 10;
 
-  // Filter orders by active status
-  const activeOrders = orders.filter(
-    (o) => o.status !== 'delivered' && o.status !== 'completed'
-  );
+  // Filter orders by active status, sorted latest order first
+  const activeOrders = orders
+    .filter((o) => o.status !== 'delivered' && o.status !== 'completed')
+    .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
 
   // Pagination logic
   const totalPages = Math.ceil(activeOrders.length / recordsPerPage);

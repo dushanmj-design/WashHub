@@ -465,14 +465,10 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
           - - - - - END OF CUSTOMER BILL - - - - -
         </div>
 
-        {/* Paper Feed & Cutter Clearance Spacer - 75mm physical blank feed ensures no cut into receipt */}
-        <div className="receipt-cutter-spacer w-full" style={{ minHeight: `${cutterFeedMm}mm`, height: `${cutterFeedMm}mm`, display: 'block', clear: 'both' }} aria-hidden="true">
-          <div style={{ height: `${cutterFeedMm}mm`, minHeight: `${cutterFeedMm}mm`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', color: 'transparent', userSelect: 'none' }}>
-            <div style={{ fontSize: '14px', lineHeight: '18mm' }}>&nbsp;</div>
-            <div style={{ fontSize: '14px', lineHeight: '18mm' }}>&nbsp;</div>
-            <div style={{ fontSize: '14px', lineHeight: '18mm' }}>&nbsp;</div>
-            <div style={{ fontSize: '14px', lineHeight: '18mm' }}>&nbsp;</div>
-          </div>
+        {/* Physical blank feed buffer with non-trimmed anchor dot ensures thermal head feeds 35mm past cutter knife */}
+        <div className="receipt-cutter-spacer w-full select-none" style={{ minHeight: '35mm', height: '35mm', display: 'block', clear: 'both' }} aria-hidden="true">
+          <div style={{ height: '30mm' }}>&nbsp;</div>
+          <div className="text-center text-[7px] text-slate-300 font-mono" style={{ lineHeight: '5mm' }}>.</div>
         </div>
       </div>
     );
@@ -603,14 +599,10 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
         - - - - - END OF VENDOR TAG - - - - -
       </div>
 
-      {/* Paper Feed & Cutter Clearance Spacer - 75mm physical blank feed ensures no cut into receipt */}
-      <div className="receipt-cutter-spacer w-full" style={{ minHeight: `${cutterFeedMm}mm`, height: `${cutterFeedMm}mm`, display: 'block', clear: 'both' }} aria-hidden="true">
-        <div style={{ height: `${cutterFeedMm}mm`, minHeight: `${cutterFeedMm}mm`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', color: 'transparent', userSelect: 'none' }}>
-          <div style={{ fontSize: '14px', lineHeight: '18mm' }}>&nbsp;</div>
-          <div style={{ fontSize: '14px', lineHeight: '18mm' }}>&nbsp;</div>
-          <div style={{ fontSize: '14px', lineHeight: '18mm' }}>&nbsp;</div>
-          <div style={{ fontSize: '14px', lineHeight: '18mm' }}>&nbsp;</div>
-        </div>
+      {/* Physical blank feed buffer with non-trimmed anchor dot ensures thermal head feeds 35mm past cutter knife */}
+      <div className="receipt-cutter-spacer w-full select-none" style={{ minHeight: '35mm', height: '35mm', display: 'block', clear: 'both' }} aria-hidden="true">
+        <div style={{ height: '30mm' }}>&nbsp;</div>
+        <div className="text-center text-[7px] text-slate-300 font-mono" style={{ lineHeight: '5mm' }}>.</div>
       </div>
     </div>
   );
