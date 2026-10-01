@@ -2,8 +2,8 @@
 // Sandbox API Key: sg_test_fe28512bacb07b152babeaf139659d7d
 
 const SMSGO_BASE_URL = 'https://api.smsgo.lk';
-const DEFAULT_API_KEY = process.env.SMSGO_API_KEY || 'sg_test_fe28512bacb07b152babeaf139659d7d';
-const DEFAULT_SENDER_MASK = process.env.SMSGO_SENDER_MASK || '';
+const DEFAULT_API_KEY = process.env.SMSGO_API_KEY || 'sg_live_4d7529fbbcd1cef109cf20aacadec5c3';
+const DEFAULT_SENDER_MASK = process.env.SMSGO_SENDER_MASK || 'LaundroPOS';
 
 export interface SMSGatewayStatus {
   online: boolean;
@@ -132,23 +132,9 @@ export async function sendSMSGoMessage(params: {
   }
 
   // Determine if a sender mask is available or specified
-  let maskToUse = params.mask || DEFAULT_SENDER_MASK;
-  if (!maskToUse) {
-    try {
-      const masksRes = await fetch(`${SMSGO_BASE_URL}/api/v1/account/masks`, {
-        method: 'GET',
-        headers: { 'X-API-Key': apiKey }
-      });
-      if (masksRes.ok) {
-        const mData = await masksRes.json();
-        if (mData && Array.isArray(mData.data) && mData.data.length > 0) {
-          const first = mData.data[0];
-          maskToUse = typeof first === 'string' ? first : first.name || first.mask;
-        }
-      }
-    } catch {
-      // Ignore mask fetch error and proceed without mask
-    }
+  let maskToUse = params.mask || DEFAULT_SENDER_MASK || 'LaundroPOS';
+  if (maskToUse.toLowerCase().includes('wash')) {
+    maskToUse = 'LaundroPOS';
   }
 
   const payload: any = {
@@ -172,6 +158,17 @@ export async function sendSMSGoMessage(params: {
     });
 
     const data = await response.json().catch(() => ({}));
+
+    // Auto-retry if SMSGo indicates another approved mask is available
+    if (!response.ok && data?.message && data.message.includes('Available masks:')) {
+      const match = data.message.match(/Available masks:\s*([A-Za-z0-9_-]+)/);
+      if (match && match[1] && match[1] !== maskToUse) {
+        return sendSMSGoMessage({
+          ...params,
+          mask: match[1]
+        });
+      }
+    }
 
     if (response.ok && (data.success !== false)) {
       return {

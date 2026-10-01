@@ -729,9 +729,14 @@ const handleOrderIntake = async (orderData: {
                   </div>
 
                   {scanSuccessDetails.smsSent && (
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-left text-xs text-emerald-900 flex items-center gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-                      <span>Customer notification successfully delivered via <strong>SMSGo Gateway (LaundroPOS)</strong>.</span>
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-left text-xs text-emerald-900 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <span>Dispatched via <strong>SMSGo Gateway (Mask: LaundroPOS)</strong></span>
+                      </div>
+                      <p className="text-[10px] text-emerald-800/80 pl-6">
+                        💡 If not seen in main inbox, please check the <em>'Promotions'</em>, <em>'Updates'</em>, or <em>'Spam'</em> tab on the phone.
+                      </p>
                     </div>
                   )}
 
@@ -742,15 +747,25 @@ const handleOrderIntake = async (orderData: {
                     </div>
                   )}
 
-                  <button
-                    onClick={() => {
-                      setScanSuccessDetails(null);
-                      setSuccessMessage('');
-                    }}
-                    className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition cursor-pointer text-sm"
-                  >
-                    Done
-                  </button>
+                  <div className="flex gap-2 w-full pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleScanBarcode(scanSuccessDetails.barcodeId)}
+                      className="flex-1 py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 text-slate-600" />
+                      <span>Resend SMS</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setScanSuccessDetails(null);
+                        setSuccessMessage('');
+                      }}
+                      className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition cursor-pointer text-xs"
+                    >
+                      Done
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <>
@@ -797,7 +812,12 @@ const handleOrderIntake = async (orderData: {
           </button>
 
           <button
-            onClick={() => setActiveTab('scan')}
+            onClick={() => {
+              if (document.activeElement && 'blur' in document.activeElement) {
+                (document.activeElement as HTMLElement).blur();
+              }
+              setActiveTab('scan');
+            }}
             className={`py-2.5 px-4 text-sm font-medium border-b-2 transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
               activeTab === 'scan'
                 ? 'border-cyan-600 text-cyan-700 font-bold'
@@ -810,7 +830,12 @@ const handleOrderIntake = async (orderData: {
           </button>
 
           <button
-            onClick={() => setActiveTab('billing')}
+            onClick={() => {
+              if (document.activeElement && 'blur' in document.activeElement) {
+                (document.activeElement as HTMLElement).blur();
+              }
+              setActiveTab('billing');
+            }}
             className={`py-2.5 px-4 text-sm font-medium border-b-2 transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
               activeTab === 'billing'
                 ? 'border-cyan-600 text-cyan-700 font-bold'
@@ -923,7 +948,6 @@ const handleOrderIntake = async (orderData: {
             <BillingCheckout 
               orders={orders} 
               onCloseOrder={handleCloseOrder} 
-              onScanReady={handleScanBarcode}
               isLoading={isActionLoading} 
             />
           </div>

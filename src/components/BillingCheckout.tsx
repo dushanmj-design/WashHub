@@ -1,46 +1,22 @@
 import React, { useState } from 'react';
-import { Receipt, CheckSquare, Coins, AlertTriangle, ShieldAlert, Smile, Delete, Sparkles, Camera, QrCode } from 'lucide-react';
+import { Receipt, CheckSquare, Coins, AlertTriangle, ShieldAlert, Smile, Delete, Sparkles } from 'lucide-react';
 import { Order } from '../types';
 import { PaginatedList } from './PaginatedList';
-import CameraScanner from './CameraScanner';
 
 interface BillingCheckoutProps {
   orders: Order[];
   onCloseOrder: (orderId: string, finalAmount: number, receivedCash: number) => void;
-  onScanReady?: (barcode: string) => Promise<void>;
   isLoading: boolean;
 }
 
 type SettleFieldName = 'finalAmount' | 'receivedCash';
 
-export default function BillingCheckout({ orders, onCloseOrder, onScanReady, isLoading }: BillingCheckoutProps) {
+export default function BillingCheckout({ orders, onCloseOrder, isLoading }: BillingCheckoutProps) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [finalAmount, setFinalAmount] = useState('');
   const [receivedCash, setReceivedCash] = useState('');
   const [activeField, setActiveField] = useState<SettleFieldName>('finalAmount');
   const [error, setError] = useState('');
-
-  const [scanInput, setScanInput] = useState('');
-  const [showCamera, setShowCamera] = useState(false);
-
-  const handleScanSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    let clean = scanInput.trim();
-    if (!clean || !onScanReady) return;
-    if (clean.includes('scan/')) {
-      const parts = clean.split('scan/');
-      clean = parts[parts.length - 1].split('?')[0].split('#')[0].trim();
-    } else if (clean.includes('scan=')) {
-      const match = clean.match(/scan=([^&#\s]+)/);
-      if (match) clean = decodeURIComponent(match[1]).trim();
-    }
-    try {
-      await onScanReady(clean);
-      setScanInput('');
-    } catch (err) {
-      // API error handled upstream
-    }
-  };
 
 
   // Only completed orders can be checked out
@@ -134,44 +110,7 @@ export default function BillingCheckout({ orders, onCloseOrder, onScanReady, isL
         </div>
       </div>
 
-      
-      {showCamera && onScanReady && (
-        <CameraScanner
-          onScan={(decoded) => {
-            setShowCamera(false);
-            onScanReady(decoded);
-          }}
-          onClose={() => setShowCamera(false)}
-        />
-      )}
 
-      {onScanReady && (
-          <form onSubmit={handleScanSubmit} className="mb-6 p-4 rounded-xl border border-blue-200 bg-blue-50/50 flex flex-col sm:flex-row gap-3 shadow-sm">
-            <div className="relative flex-1">
-              <QrCode className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
-              <input 
-                type="text" 
-                autoFocus 
-                value={scanInput} 
-                onChange={e => setScanInput(e.target.value)} 
-                placeholder="Scan Vendor QR (Barcode) here to mark as Ready for Pickup..." 
-                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm shadow-sm bg-white" 
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowCamera(true)}
-              className="bg-cyan-700 hover:bg-cyan-800 text-white font-bold px-4 py-3 rounded-lg transition shadow flex items-center justify-center gap-2 cursor-pointer"
-              title="Scan with Camera"
-            >
-              <Camera className="h-4 w-4" />
-              <span>Camera Scan</span>
-            </button>
-            <button type="submit" disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-lg transition shadow flex items-center justify-center gap-2 cursor-pointer">
-              <span>Mark Ready & SMS</span>
-            </button>
-          </form>
-      )}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
 
         
@@ -251,21 +190,19 @@ export default function BillingCheckout({ orders, onCloseOrder, onScanReady, isL
                   <label className="text-xs font-bold text-slate-700 block">
                     Final Invoice Amount (Rs.)
                   </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      step="1"
-                      value={finalAmount}
-                      onFocus={() => setActiveField('finalAmount')}
-                      onChange={(e) => setFinalAmount(e.target.value)}
-                      className={`w-full bg-white border rounded-xl text-base px-3 py-2.5 outline-none font-mono transition-all ${
-                        activeField === 'finalAmount'
-                          ? 'border-cyan-500 ring-4 ring-cyan-500/10 font-bold bg-cyan-50/10'
-                          : 'border-slate-200'
-                      }`}
-                      id="final-billing-amount"
-                      required
-                    />
+                  <div 
+                    onClick={() => setActiveField('finalAmount')}
+                    className={`w-full bg-white border rounded-xl text-base px-3.5 py-2.5 outline-none font-mono transition-all cursor-pointer flex items-center justify-between select-none ${
+                      activeField === 'finalAmount'
+                        ? 'border-cyan-600 ring-4 ring-cyan-500/10 font-bold bg-cyan-50/20 text-cyan-950'
+                        : 'border-slate-200 text-slate-900 hover:border-slate-300'
+                    }`}
+                    id="final-billing-amount-touch"
+                  >
+                    <span className="text-base font-bold">Rs. {finalAmount || '0'}</span>
+                    {activeField === 'finalAmount' && (
+                      <span className="text-[10px] uppercase font-bold text-cyan-700 bg-cyan-100 px-2 py-0.5 rounded">Active</span>
+                    )}
                   </div>
                 </div>
 
@@ -274,21 +211,19 @@ export default function BillingCheckout({ orders, onCloseOrder, onScanReady, isL
                   <label className="text-xs font-bold text-slate-700 block">
                     Received Cash (Rs.)
                   </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      step="1"
-                      value={receivedCash}
-                      onFocus={() => setActiveField('receivedCash')}
-                      onChange={(e) => setReceivedCash(e.target.value)}
-                      className={`w-full bg-white border rounded-xl text-base px-3 py-2.5 outline-none font-mono transition-all ${
-                        activeField === 'receivedCash'
-                          ? 'border-cyan-500 ring-4 ring-cyan-500/10 font-bold bg-cyan-50/10'
-                          : 'border-slate-200'
-                      }`}
-                      id="received-cash"
-                      required
-                    />
+                  <div 
+                    onClick={() => setActiveField('receivedCash')}
+                    className={`w-full bg-white border rounded-xl text-base px-3.5 py-2.5 outline-none font-mono transition-all cursor-pointer flex items-center justify-between select-none ${
+                      activeField === 'receivedCash'
+                        ? 'border-cyan-600 ring-4 ring-cyan-500/10 font-bold bg-cyan-50/20 text-cyan-950'
+                        : 'border-slate-200 text-slate-900 hover:border-slate-300'
+                    }`}
+                    id="received-cash-touch"
+                  >
+                    <span className="text-base font-bold">Rs. {receivedCash || '0'}</span>
+                    {activeField === 'receivedCash' && (
+                      <span className="text-[10px] uppercase font-bold text-cyan-700 bg-cyan-100 px-2 py-0.5 rounded">Active</span>
+                    )}
                   </div>
                 </div>
 
