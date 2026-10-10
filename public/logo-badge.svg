@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" width="220" height="220" fill="none">
+  <defs>
+    <clipPath id="drumWindowClipSquare">
+      <circle cx="110" cy="110" r="66" />
+    </clipPath>
+  </defs>
+
+  <!-- Official App Squircle Badge -->
+  <rect x="0" y="0" width="220" height="220" rx="58" fill="#0d2639" />
+
+  <!-- Top-left indicators -->
+  <circle cx="48" cy="34" r="7.5" fill="#24bcd7" />
+  <circle cx="73" cy="34" r="7.5" fill="#f59e0b" />
+
+  <!-- Top-right dispenser drawer slot -->
+  <rect x="134" y="27" width="54" height="15" rx="7.5" fill="#173b54" />
+
+  <!-- Drum window background (clipped) -->
+  <circle cx="110" cy="110" r="66" fill="#0a1f2e" />
+
+  <!-- Drum interior graphics with clip -->
+  <g clip-path="url(#drumWindowClipSquare)">
+    <!-- Bubbles -->
+    <circle cx="72" cy="74" r="3.2" fill="#ffffff" />
+    <circle cx="90" cy="88" r="7.2" stroke="#ffffff" stroke-width="2.2" fill="none" />
+    <circle cx="127" cy="80" r="5" stroke="#ffffff" stroke-width="2" fill="none" />
+
+    <!-- Water waves (dual tone) -->
+    <path 
+      d="M 35 122 C 55 98 85 146 115 128 C 135 116 155 128 185 122 L 185 185 L 35 185 Z" 
+      fill="#30c6e0" 
+    />
+    <path 
+      d="M 35 138 C 60 120 88 156 120 142 C 145 130 165 142 185 138 L 185 185 L 35 185 Z" 
+      fill="#1491ab" 
+    />
+  </g>
+
+  <!-- Porthole Door cyan outer ring -->
+  <circle cx="110" cy="110" r="66" stroke="#24bcd7" stroke-width="9.5" fill="none" />
+
+  <!-- Bottom machine accents / buttons -->
+  <rect x="78" y="194" width="26" height="5.5" rx="2.75" fill="#24bcd7" />
+  <rect x="116" y="194" width="26" height="5.5" rx="2.75" fill="#24bcd7" />
+</svg>

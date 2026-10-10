@@ -1,41 +1,78 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" width="400" height="480" fill="none">
   <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0284c7"/>
-      <stop offset="50%" stop-color="#0ea5e9"/>
-      <stop offset="100%" stop-color="#06b6d4"/>
-    </linearGradient>
-    <linearGradient id="drumGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#e0f2fe"/>
-    </linearGradient>
-    <linearGradient id="swirlGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0284c7"/>
-      <stop offset="100%" stop-color="#10b981"/>
-    </linearGradient>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0369a1" flood-opacity="0.35"/>
-    </filter>
+    <!-- Clip path to keep water waves and bubbles strictly inside the round drum window -->
+    <clipPath id="drumWindowClip">
+      <circle cx="200" cy="150" r="66" />
+    </clipPath>
   </defs>
-  
-  <!-- Outer Rounded Shield / Rounded Rectangle -->
-  <rect x="6" y="6" width="108" height="108" rx="28" fill="url(#bgGrad)" filter="url(#shadow)"/>
-  
-  <!-- Washing Machine Outer Ring -->
-  <circle cx="60" cy="60" r="38" stroke="url(#drumGrad)" stroke-width="4.5" fill="#0f172a" fill-opacity="0.18"/>
-  
-  <!-- Inner Glass Door Rim with Accent -->
-  <circle cx="60" cy="60" r="28" stroke="#ffffff" stroke-width="2.5" stroke-dasharray="4 2" stroke-opacity="0.6"/>
-  
-  <!-- Dynamic Washing Swirl Water Wave -->
-  <path d="M 46 68 C 42 56 50 46 62 46 C 74 46 78 54 74 62 C 70 70 58 72 52 64 C 48 58 52 52 58 52" 
-        stroke="url(#drumGrad)" stroke-width="4.5" stroke-linecap="round" fill="none"/>
-        
-  <!-- Sparkling Suds / Bubbles -->
-  <circle cx="75" cy="42" r="5" fill="#ffffff" fill-opacity="0.95"/>
-  <circle cx="43" cy="46" r="3.5" fill="#38bdf8" fill-opacity="0.9"/>
-  <circle cx="74" cy="74" r="3" fill="#ffffff" fill-opacity="0.9"/>
-  
-  <!-- Sparkle Star Accent -->
-  <path d="M 86 30 Q 86 36 92 36 Q 86 36 86 42 Q 86 36 80 36 Q 86 36 86 30 Z" fill="#facc15"/>
+
+  <!-- 1. OFFICIAL APP BADGE / SQUIRCLE -->
+  <rect x="90" y="30" width="220" height="220" rx="58" fill="#0d2639" />
+
+  <!-- Top-left indicators -->
+  <circle cx="138" cy="74" r="7.5" fill="#24bcd7" />
+  <circle cx="163" cy="74" r="7.5" fill="#f59e0b" />
+
+  <!-- Top-right dispenser drawer slot -->
+  <rect x="224" y="67" width="54" height="15" rx="7.5" fill="#173b54" />
+
+  <!-- Drum window background (clipped) -->
+  <circle cx="200" cy="150" r="66" fill="#0a1f2e" />
+
+  <!-- Drum interior graphics with clip -->
+  <g clip-path="url(#drumWindowClip)">
+    <!-- Bubbles -->
+    <circle cx="162" cy="114" r="3.2" fill="#ffffff" />
+    <circle cx="180" cy="128" r="7.2" stroke="#ffffff" stroke-width="2.2" fill="none" />
+    <circle cx="217" cy="120" r="5" stroke="#ffffff" stroke-width="2" fill="none" />
+
+    <!-- Water waves (dual tone) -->
+    <!-- Wave 1: lighter cyan top wave -->
+    <path 
+      d="M 125 162 C 145 138 175 186 205 168 C 225 156 245 168 275 162 L 275 225 L 125 225 Z" 
+      fill="#30c6e0" 
+    />
+    <!-- Wave 2: deeper ocean cyan lower wave -->
+    <path 
+      d="M 125 178 C 150 160 178 196 210 182 C 235 170 255 182 275 178 L 275 225 L 125 225 Z" 
+      fill="#1491ab" 
+    />
+  </g>
+
+  <!-- Porthole Door cyan outer ring -->
+  <circle cx="200" cy="150" r="66" stroke="#24bcd7" stroke-width="9.5" fill="none" />
+
+  <!-- Bottom machine accents / buttons -->
+  <rect x="168" y="234" width="26" height="5.5" rx="2.75" fill="#24bcd7" />
+  <rect x="206" y="234" width="26" height="5.5" rx="2.75" fill="#24bcd7" />
+
+  <!-- 2. BRAND TYPOGRAPHY -->
+  <!-- "LaundroPOS" -->
+  <g id="brand-text">
+    <text 
+      x="200" 
+      y="350" 
+      text-anchor="middle" 
+      font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" 
+      font-size="54" 
+      font-weight="800" 
+      letter-spacing="-0.5px"
+    >
+      <tspan fill="#0d2639">Laundro</tspan><tspan fill="#24bcd7">POS</tspan>
+    </text>
+
+    <!-- "by Navya Ventures" -->
+    <text 
+      x="200" 
+      y="396" 
+      text-anchor="middle" 
+      font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" 
+      font-size="22" 
+      font-weight="500" 
+      letter-spacing="3.8px" 
+      fill="#526e82"
+    >
+      by Navya Ventures
+    </text>
+  </g>
 </svg>

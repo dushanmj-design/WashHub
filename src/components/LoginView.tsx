@@ -70,14 +70,13 @@ export default function LoginView({ onLogin }: LoginViewProps) {
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="bg-white max-w-md w-full rounded-2xl shadow-xl overflow-hidden animate-fade-in">
-        <div className="bg-slate-800 p-6 text-center">
-          <div className="mx-auto mb-3 flex justify-center">
-            <LaundroPosLogo size="lg" />
-          </div>
-          <h1 className="text-2xl font-bold text-white font-display tracking-tight">
-            Laundro<span className="text-cyan-400">POS</span>
-          </h1>
-          <p className="text-slate-400 text-xs mt-1">Smart Laundry & Dry Cleaning Management System</p>
+        {/* Exact Official Logo Lockup */}
+        <div className="bg-white pt-8 pb-3 px-6 text-center border-b border-slate-100 flex flex-col items-center justify-center">
+          <img
+            src="/logo.svg"
+            alt="LaundroPOS by Navya Ventures"
+            className="w-56 max-w-full h-auto object-contain mx-auto select-none"
+          />
         </div>
         
         <div className="p-8">
