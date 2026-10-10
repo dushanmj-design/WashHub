@@ -32,8 +32,10 @@ export default function StickerView({ payload, onClose }: StickerViewProps) {
     );
   }
 
+  const cleanNum = payload.barcode ? payload.barcode.replace(/^WB-?/i, '') : '';
+
   const handleCopyBarcode = () => {
-    navigator.clipboard.writeText(payload.barcode);
+    navigator.clipboard.writeText(cleanNum);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -70,7 +72,7 @@ export default function StickerView({ payload, onClose }: StickerViewProps) {
           <div>THERMAL BAGGING TAG</div>
           <hr />
           <div class="text-left">
-            <div class="row"><strong>ID:</strong> <span>${payload.barcode}</span></div>
+            <div class="row"><strong>ORDER #:</strong> <span>${cleanNum}</span></div>
             <div class="row"><strong>CLIENT:</strong> <span>${payload.customer}</span></div>
             <div class="row"><strong>PHONE:</strong> <span>${payload.mobile}</span></div>
             <div class="row"><strong>DATE:</strong> <span>${new Date(payload.in_date).toLocaleDateString()}</span></div>
@@ -81,7 +83,7 @@ export default function StickerView({ payload, onClose }: StickerViewProps) {
           </div>
           <hr />
           <div class="barcode">${qrSvgString}</div>
-          <div>${payload.barcode}</div>
+          <div>${cleanNum}</div>
         </body>
       </html>
     `, `${payload.shopName?.toUpperCase() || 'WASH HUB'} Label Print - ${payload.barcode}`);
@@ -121,8 +123,8 @@ export default function StickerView({ payload, onClose }: StickerViewProps) {
         {/* Core fields */}
         <div className="space-y-2 border-b border-slate-400 border-dashed pb-3 mb-3">
           <div className="flex justify-between">
-            <span className="font-bold">BARCODE ID:</span>
-            <span className="font-bold">{payload.barcode}</span>
+            <span className="font-bold">ORDER #:</span>
+            <span className="font-bold">{cleanNum}</span>
           </div>
           <div className="flex justify-between">
             <span>IN-DATE:</span>

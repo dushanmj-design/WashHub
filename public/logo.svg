@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="50%" stop-color="#0ea5e9"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="drumGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e0f2fe"/>
+    </linearGradient>
+    <linearGradient id="swirlGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0369a1" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  
+  <!-- Outer Rounded Shield / Rounded Rectangle -->
+  <rect x="6" y="6" width="108" height="108" rx="28" fill="url(#bgGrad)" filter="url(#shadow)"/>
+  
+  <!-- Washing Machine Outer Ring -->
+  <circle cx="60" cy="60" r="38" stroke="url(#drumGrad)" stroke-width="4.5" fill="#0f172a" fill-opacity="0.18"/>
+  
+  <!-- Inner Glass Door Rim with Accent -->
+  <circle cx="60" cy="60" r="28" stroke="#ffffff" stroke-width="2.5" stroke-dasharray="4 2" stroke-opacity="0.6"/>
+  
+  <!-- Dynamic Washing Swirl Water Wave -->
+  <path d="M 46 68 C 42 56 50 46 62 46 C 74 46 78 54 74 62 C 70 70 58 72 52 64 C 48 58 52 52 58 52" 
+        stroke="url(#drumGrad)" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+        
+  <!-- Sparkling Suds / Bubbles -->
+  <circle cx="75" cy="42" r="5" fill="#ffffff" fill-opacity="0.95"/>
+  <circle cx="43" cy="46" r="3.5" fill="#38bdf8" fill-opacity="0.9"/>
+  <circle cx="74" cy="74" r="3" fill="#ffffff" fill-opacity="0.9"/>
+  
+  <!-- Sparkle Star Accent -->
+  <path d="M 86 30 Q 86 36 92 36 Q 86 36 86 42 Q 86 36 80 36 Q 86 36 86 30 Z" fill="#facc15"/>
+</svg>

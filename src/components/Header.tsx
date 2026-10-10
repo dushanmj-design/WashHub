@@ -1,6 +1,7 @@
 import React from 'react';
 import { Building2, ShieldAlert, User, RefreshCw, Bell, PlusCircle } from 'lucide-react';
 import { Tenant, UserRole } from '../types';
+import LaundroPosLogo from './LaundroPosLogo';
 
 interface HeaderProps {
   tenants: Tenant[];
@@ -30,17 +31,15 @@ export default function Header({
       <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center justify-between py-2 gap-2 min-h-[4rem]">
           
-          {/* Logo & Slogan */}
+          {/* Logo & Brand Name */}
           <div className="flex items-center gap-3">
-            <div className="bg-cyan-500 text-slate-950 p-2 rounded-xl flex items-center justify-center font-display font-bold tracking-wider shadow-lg shadow-cyan-500/20">
-              WH
-            </div>
+            <LaundroPosLogo size="sm" />
             <div>
-              <span className="font-display font-bold text-xl tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-                {(activeTenant?.name || 'WashHub').replace(/wash\s*bay/gi, 'WashHub')}
+              <span className="font-display font-bold text-xl tracking-tight bg-gradient-to-r from-white via-slate-100 to-cyan-200 bg-clip-text text-transparent">
+                Laundro<span className="text-cyan-400">POS</span>
               </span>
-              <span className="hidden sm:inline-block ml-2 text-xs font-mono px-2 py-0.5 bg-slate-800 text-cyan-400 rounded-full">
-                POS v1.2
+              <span className="hidden sm:inline-block ml-2 text-[10px] font-mono px-2 py-0.5 bg-slate-800 text-slate-300 rounded-full border border-slate-700">
+                {activeTenant?.name || 'Main Branch'}
               </span>
             </div>
           </div>

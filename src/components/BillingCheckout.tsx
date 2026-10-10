@@ -19,17 +19,56 @@ export default function BillingCheckout({ orders, onCloseOrder, isLoading }: Bil
   const [error, setError] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ready' | 'all' | 'delivered'>('ready');
 
-  // Only completed orders can be checked out, filtered by date range and sorted latest order first
+  const getOrderTimestamp = (o: Order): number => {
+    if (!o) return 0;
+    if (o.created_at) {
+      const t = new Date(o.created_at).getTime();
+      if (!isNaN(t) && t > 0) return t;
+    }
+    if ((o as any).in_date) {
+      const t = new Date((o as any).in_date).getTime();
+      if (!isNaN(t) && t > 0) return t;
+    }
+    if (o.id && typeof o.id === 'string' && o.id.startsWith('o-')) {
+      const num = parseInt(o.id.replace('o-', ''), 10);
+      if (!isNaN(num)) return num;
+    }
+    return 0;
+  };
+
+  const getOrderDateStr = (o: Order): string => {
+    if (!o) return '';
+    if (o.created_at) {
+      try {
+        const d = new Date(o.created_at);
+        if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+      } catch {}
+      if (typeof o.created_at === 'string' && o.created_at.length >= 10) {
+        return o.created_at.slice(0, 10);
+      }
+    }
+    if ((o as any).in_date) {
+      try {
+        const d = new Date((o as any).in_date);
+        if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+      } catch {}
+    }
+    return '';
+  };
+
+  // Filter orders by date range and status, strictly sorted with latest order at the top
   const readyOrders = orders
     .filter((o) => {
-      if (o.status !== 'completed') return false;
-      const orderDateStr = o.created_at ? o.created_at.slice(0, 10) : '';
+      if (statusFilter === 'ready' && o.status !== 'completed') return false;
+      if (statusFilter === 'delivered' && o.status !== 'delivered') return false;
+      const orderDateStr = getOrderDateStr(o);
       if (startDate && orderDateStr && orderDateStr < startDate) return false;
       if (endDate && orderDateStr && orderDateStr > endDate) return false;
       return true;
     })
-    .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    .sort((a, b) => getOrderTimestamp(b) - getOrderTimestamp(a));
 
   const handleSelectOrder = (order: Order) => {
     setSelectedOrder(order);
@@ -128,26 +167,61 @@ export default function BillingCheckout({ orders, onCloseOrder, isLoading }: Bil
           {/* Header & Date Range Filter Bar */}
           <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-3 sm:p-4 space-y-2.5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                <Receipt className="h-3.5 w-3.5 text-cyan-600" />
-                <span>Ready Bags ({readyOrders.length})</span>
-                <span className="text-[10px] font-normal normal-case text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-full">
+              <div className="flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-cyan-600" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  {statusFilter === 'ready' ? 'Ready Bags' : statusFilter === 'delivered' ? 'Delivered Bags' : 'All Bags'} ({readyOrders.length})
+                </span>
+                <span className="text-[10px] font-bold text-cyan-800 bg-cyan-50 border border-cyan-200 px-2 py-0.5 rounded-full">
                   Latest first
                 </span>
-              </span>
+              </div>
 
-              {/* Quick Today selector */}
-              <button
-                type="button"
-                onClick={() => {
-                  const todayStr = new Date().toISOString().slice(0, 10);
-                  setStartDate(todayStr);
-                  setEndDate(todayStr);
-                }}
-                className="text-[11px] font-bold text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 px-2.5 py-1 rounded-lg transition cursor-pointer self-start sm:self-auto"
-              >
-                Today's Orders
-              </button>
+              {/* Status & Quick Filter Buttons */}
+              <div className="flex flex-wrap items-center gap-1.5 self-start sm:self-auto">
+                <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('ready')}
+                    className={`px-2 py-1 rounded-md font-semibold transition cursor-pointer ${
+                      statusFilter === 'ready' ? 'bg-cyan-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Ready Bags
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('all')}
+                    className={`px-2 py-1 rounded-md font-semibold transition cursor-pointer ${
+                      statusFilter === 'all' ? 'bg-cyan-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('delivered')}
+                    className={`px-2 py-1 rounded-md font-semibold transition cursor-pointer ${
+                      statusFilter === 'delivered' ? 'bg-cyan-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Delivered
+                  </button>
+                </div>
+
+                {/* Quick Today selector */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const todayStr = new Date().toISOString().slice(0, 10);
+                    setStartDate(todayStr);
+                    setEndDate(todayStr);
+                  }}
+                  className="text-[11px] font-bold text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 px-2.5 py-1 rounded-lg transition cursor-pointer"
+                >
+                  Today
+                </button>
+              </div>
             </div>
 
             {/* Start and End Date Inputs */}
@@ -161,6 +235,7 @@ export default function BillingCheckout({ orders, onCloseOrder, isLoading }: Bil
                   onChange={(e) => setStartDate(e.target.value)}
                   className="text-xs font-medium text-slate-800 bg-transparent outline-none cursor-pointer"
                   id="checkout-start-date"
+                  aria-label="Filter from start date"
                 />
               </div>
 
@@ -173,6 +248,7 @@ export default function BillingCheckout({ orders, onCloseOrder, isLoading }: Bil
                   onChange={(e) => setEndDate(e.target.value)}
                   className="text-xs font-medium text-slate-800 bg-transparent outline-none cursor-pointer"
                   id="checkout-end-date"
+                  aria-label="Filter to end date"
                 />
               </div>
 
@@ -198,7 +274,7 @@ export default function BillingCheckout({ orders, onCloseOrder, isLoading }: Bil
             <PaginatedList<Order>
               items={readyOrders}
               itemsPerPage={10}
-              sortByDateDesc={(o) => o.created_at}
+              sortByDateDesc={(o) => o.created_at || (o as any).in_date}
               listClassName="grid grid-cols-1 sm:grid-cols-2 gap-3.5"
               renderItem={(order) => (
                 <div 
@@ -214,7 +290,7 @@ export default function BillingCheckout({ orders, onCloseOrder, isLoading }: Bil
                   <div className="space-y-2">
                     <div className="flex justify-between items-start">
                       <span className="font-mono text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded border border-emerald-200">
-                        {order.barcode_id}
+                        {order.barcode_id ? order.barcode_id.replace(/^WB-?/i, '') : order.id}
                       </span>
                       <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider flex items-center gap-1">
                         <Smile className="h-3.5 w-3.5" /> Ready
@@ -244,7 +320,7 @@ export default function BillingCheckout({ orders, onCloseOrder, isLoading }: Bil
               
               <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-xs space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-slate-500 font-bold">ID: {selectedOrder.barcode_id}</span>
+                  <span className="text-slate-500 font-bold">ID: {selectedOrder.barcode_id ? selectedOrder.barcode_id.replace(/^WB-?/i, '') : selectedOrder.id}</span>
                   <span className="font-mono text-cyan-700 font-bold">Workflow: {selectedOrder.workflow === 'wash_dry_iron' ? 'Wash, Dry, Iron' : 'Wash, Dry'}</span>
                 </div>
                 <div className="flex justify-between border-t border-slate-100 pt-2 text-slate-600">

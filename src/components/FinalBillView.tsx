@@ -45,7 +45,7 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
 
   if (!payload) return null;
 
-  const billNumber = payload.barcode ? payload.barcode.replace('WB-', '') : '1025';
+  const billNumber = payload.barcode ? payload.barcode.replace(/^WB-?/i, '') : '1025';
   const shopPhone = '011 3041630, 011 2735490';
   const changeDue = Math.max(0, payload.received_cash - payload.final_amount);
   const balanceDue = Math.max(0, payload.final_amount - payload.received_cash);
@@ -97,7 +97,7 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
     totalAmount: payload.final_amount.toFixed(2),
     advanceAmount: payload.received_cash.toFixed(2),
     balanceAmount: balanceDue.toFixed(2),
-    barcode: payload.barcode || `WB-${billNumber}`
+    barcode: billNumber
   });
 
   // Direct Network (LAN/Wi-Fi TCP) Print Handler
@@ -456,19 +456,22 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
           </p>
           <p className="flex items-start gap-1">
             <span className="font-black text-[9px]">■</span>
-            <span>We are not responsible for colorfastness in cloths. Check care labels before wash/dry.</span>
+            <span>We are not responsible for colorfastness in clothes. Check care labels before wash/dry.</span>
           </p>
         </div>
 
         {/* End of slip boundary marker to prevent premature driver cut */}
-        <div className="text-center font-mono text-[9px] text-slate-500 py-1 border-t border-dotted border-black/40 mt-1">
+        <div className="text-center font-mono text-[9px] text-slate-800 py-1 border-t border-dotted border-black mt-1">
           - - - - - END OF CUSTOMER BILL - - - - -
         </div>
 
-        {/* Physical blank feed buffer with non-trimmed anchor dot ensures thermal head feeds 35mm past cutter knife */}
-        <div className="receipt-cutter-spacer w-full select-none" style={{ minHeight: '35mm', height: '35mm', display: 'block', clear: 'both' }} aria-hidden="true">
-          <div style={{ height: '30mm' }}>&nbsp;</div>
-          <div className="text-center text-[7px] text-slate-300 font-mono" style={{ lineHeight: '5mm' }}>.</div>
+        {/* Physical blank feed buffer: 48mm past cutter knife with dark anti-trim markers */}
+        <div className="receipt-cutter-spacer w-full select-none pt-2 pb-10" style={{ minHeight: '48mm', height: '48mm', display: 'block', clear: 'both' }} aria-hidden="true">
+          <div className="text-center font-bold text-[9px] uppercase tracking-wider text-black">
+            *** THANK YOU · COME AGAIN ***
+          </div>
+          <div style={{ height: '32mm' }}>&nbsp;</div>
+          <div className="text-center text-[8px] text-black font-mono" style={{ lineHeight: '4mm' }}>. &nbsp; . &nbsp; .</div>
         </div>
       </div>
     );
@@ -586,23 +589,26 @@ export default function FinalBillView({ payload, onClose, inline }: FinalBillVie
       <div className="flex flex-col items-center justify-center py-1 border-t border-dashed border-black">
         <div className="text-[10px] font-black uppercase tracking-wider mb-0.5">SCAN WHEN READY</div>
         <div className="p-0.5 bg-white border border-black rounded">
-          <QRCodeSVG value={typeof window !== 'undefined' ? `${window.location.origin}/scan/${encodeURIComponent(payload.barcode || `WB-${billNumber}`)}` : (payload.barcode || `WB-${billNumber}`)} size={68} level="M" />
+          <QRCodeSVG value={typeof window !== 'undefined' ? `${window.location.origin}/scan/${encodeURIComponent(billNumber)}` : billNumber} size={68} level="M" />
         </div>
-        <div className="font-mono font-black text-[11px] mt-0.5 tracking-wider">{payload.barcode || `WB-${billNumber}`}</div>
+        <div className="font-mono font-black text-[11px] mt-0.5 tracking-wider">{billNumber}</div>
         <div className="text-[9px] font-bold uppercase tracking-widest text-slate-700">
           VENDOR COPY · ATTACH TO LAUNDRY SACK
         </div>
       </div>
 
       {/* End of slip boundary marker to prevent premature driver cut */}
-      <div className="text-center font-mono text-[9px] text-slate-500 py-1 border-t border-dotted border-black/40 mt-1">
+      <div className="text-center font-mono text-[9px] text-slate-800 py-1 border-t border-dotted border-black mt-1">
         - - - - - END OF VENDOR TAG - - - - -
       </div>
 
-      {/* Physical blank feed buffer with non-trimmed anchor dot ensures thermal head feeds 35mm past cutter knife */}
-      <div className="receipt-cutter-spacer w-full select-none" style={{ minHeight: '35mm', height: '35mm', display: 'block', clear: 'both' }} aria-hidden="true">
-        <div style={{ height: '30mm' }}>&nbsp;</div>
-        <div className="text-center text-[7px] text-slate-300 font-mono" style={{ lineHeight: '5mm' }}>.</div>
+      {/* Physical blank feed buffer: 48mm past cutter knife with dark anti-trim markers */}
+      <div className="receipt-cutter-spacer w-full select-none pt-2 pb-10" style={{ minHeight: '48mm', height: '48mm', display: 'block', clear: 'both' }} aria-hidden="true">
+        <div className="text-center font-bold text-[9px] uppercase tracking-wider text-black">
+          *** VENDOR SACK COPY ***
+        </div>
+        <div style={{ height: '32mm' }}>&nbsp;</div>
+        <div className="text-center text-[8px] text-black font-mono" style={{ lineHeight: '4mm' }}>. &nbsp; . &nbsp; .</div>
       </div>
     </div>
   );

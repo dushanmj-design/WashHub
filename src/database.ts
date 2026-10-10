@@ -110,7 +110,12 @@ class Database {
   }
 
   public async getOrders(tenantId: string, role?: string): Promise<Order[]> {
-    return this.getByTenant<Order>('orders', tenantId);
+    const list = await this.getByTenant<Order>('orders', tenantId);
+    return list.sort((a, b) => {
+      const tA = new Date(a.created_at || (a as any).in_date || 0).getTime();
+      const tB = new Date(b.created_at || (b as any).in_date || 0).getTime();
+      return (tB || 0) - (tA || 0);
+    });
   }
 
   public async createOrder(
@@ -119,7 +124,7 @@ class Database {
     role?: string
   ): Promise<{ order: Order; stickerPayload: any }> {
     const customer = await this.getOrCreateCustomer(tenantId, data.customer_mobile, data.customer_name);
-    const barcode_id = 'WB-' + Date.now().toString().slice(-6);
+    const barcode_id = Date.now().toString().slice(-6);
     let estimated_amount = data.weight * data.rate_per_kg;
     if (data.workflow === 'wash_dry_iron' && data.pieces && data.ironing_rate_per_piece) {
       estimated_amount += data.pieces * data.ironing_rate_per_piece;
@@ -149,7 +154,7 @@ class Database {
 
   public async getOrderByBarcode(tenantId: string, barcodeId: string, role?: string): Promise<Order | undefined> {
     let raw = (barcodeId || '').trim();
-    // If a full URL is scanned (e.g. https://.../scan/WB-123456 or https://.../?scan=WB-123456)
+    // If a full URL is scanned (e.g. https://.../scan/123456 or https://.../?scan=123456)
     if (raw.includes('scan/')) {
       const parts = raw.split('scan/');
       raw = parts[parts.length - 1].split('?')[0].split('#')[0].trim();
@@ -159,11 +164,12 @@ class Database {
     }
     raw = decodeURIComponent(raw).replace(/[^A-Za-z0-9_-]/g, '').trim();
     const cleanUpper = raw.toUpperCase();
+    const numOnly = cleanUpper.replace(/^WB-?/, '');
     const candidateVariants = [
       raw,
       cleanUpper,
-      cleanUpper.startsWith('WB-') ? cleanUpper : `WB-${cleanUpper}`,
-      cleanUpper.replace(/^WB-/, '')
+      numOnly,
+      `WB-${numOnly}`
     ];
 
     // Try each variant within tenant
@@ -189,7 +195,7 @@ class Database {
   
   public async createSupervisorOrder(tenantId: string, payload: any): Promise<{ order: Order }> {
     const customer = await this.getOrCreateCustomer(tenantId, payload.customer.telephone, payload.customer.name);
-    const barcode_id = 'WB-' + Date.now().toString().slice(-6);
+    const barcode_id = Date.now().toString().slice(-6);
     const id = 'o-' + Date.now();
     
     // We map the payload into our generic Order interface to keep the frontend list happy,

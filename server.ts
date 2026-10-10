@@ -413,7 +413,8 @@ app.post('/api/orders', async (req: Request, res: Response) => {
     shopName = (shopName || 'WashHub').replace(/wash\s*bay/gi, 'WashHub');
 
     // Compose SMS text (clean, friendly, telco-safe without special symbols)
-    const smsMessage = `${shopName}: Hello ${customerName}, your laundry order ${order.barcode_id || cleanBarcode} is washed, packed, and ready for pickup. Thank you!`;
+    const orderNum = (order.barcode_id || cleanBarcode || '').replace(/^WB-?/i, '');
+    const smsMessage = `${shopName}: Hello ${customerName}, your laundry order #${orderNum} is washed, packed, and ready for pickup. Thank you!`;
 
     // Trigger SMS dispatch through SMSGo Gateway with approved mask
     const smsResult = await sendSMSGoMessage({

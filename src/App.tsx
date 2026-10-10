@@ -257,8 +257,13 @@ export default function App() {
       ]);
 
       if (Array.isArray(ordersData)) {
-        setOrders(ordersData);
-        localStorage.setItem(`cycleon_orders_${activeTenant.id}`, JSON.stringify(ordersData));
+        const sortedOrders = [...ordersData].sort((a, b) => {
+          const tA = new Date(a.created_at || a.in_date || 0).getTime();
+          const tB = new Date(b.created_at || b.in_date || 0).getTime();
+          return (tB || 0) - (tA || 0);
+        });
+        setOrders(sortedOrders);
+        localStorage.setItem(`cycleon_orders_${activeTenant.id}`, JSON.stringify(sortedOrders));
       }
       if (Array.isArray(ledgerData)) {
         setLedger(ledgerData);
@@ -456,9 +461,7 @@ const handleOrderIntake = async (orderData: {
       if (match) cleanBarcode = decodeURIComponent(match[1]).trim();
     }
     cleanBarcode = decodeURIComponent(cleanBarcode).replace(/[^A-Za-z0-9_-]/g, '').trim();
-    if (/^WB\d+$/i.test(cleanBarcode)) {
-      cleanBarcode = `WB-${cleanBarcode.slice(2)}`;
-    }
+    cleanBarcode = cleanBarcode.replace(/^WB-?/i, '');
 
     setIsActionLoading(true);
     setErrorMessage('');
@@ -500,7 +503,7 @@ const handleOrderIntake = async (orderData: {
         const statusDisplay = (result.status || 'READY FOR PICKUP').toUpperCase();
         
         setScanSuccessDetails({
-          barcodeId: result.barcode_id || cleanBarcode,
+          barcodeId: (result.barcode_id || cleanBarcode).replace(/^WB-?/i, ''),
           customerName: targetCustomer,
           customerPhone: targetPhone,
           smsSent: Boolean(result.sms_sent || result.sms_dispatched),
@@ -705,7 +708,7 @@ const handleOrderIntake = async (orderData: {
                     <div className="text-xs text-slate-600 space-y-1">
                       <span className="text-[11px] font-semibold text-slate-400 block">SMS Message Dispatched:</span>
                       <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-xs font-sans italic text-slate-800 leading-relaxed shadow-inner">
-                        "{scanSuccessDetails.smsMessage || `WashHub: Order #${scanSuccessDetails.barcodeId} is ready for pickup!`}"
+                        "{scanSuccessDetails.smsMessage || `LaundroPOS: Order #${(scanSuccessDetails.barcodeId || '').replace(/^WB-?/i, '')} is ready for pickup!`}"
                       </div>
                     </div>
 
@@ -995,7 +998,7 @@ const handleOrderIntake = async (orderData: {
 
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 py-6 border-t border-slate-800 text-xs text-center font-mono">
-        <p>© 2026 WashHub Laundry POS. High-Isolation Multi-Tenant Client Architecture.</p>
+        <p>LaundroPOS powered by Navya Ventures.</p>
         <p className="mt-1 text-[10px] text-slate-500">Row-Level Database Guard activated. Postgres schema compliant.</p>
       </footer>
 

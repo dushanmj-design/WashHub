@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, Mail, AlertTriangle, Key } from 'lucide-react';
+import LaundroPosLogo from './LaundroPosLogo';
 
 interface LoginViewProps {
   onLogin: (session: any) => void;
@@ -70,11 +71,13 @@ export default function LoginView({ onLogin }: LoginViewProps) {
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="bg-white max-w-md w-full rounded-2xl shadow-xl overflow-hidden animate-fade-in">
         <div className="bg-slate-800 p-6 text-center">
-          <div className="w-16 h-16 bg-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <Lock className="w-8 h-8 text-white" />
+          <div className="mx-auto mb-3 flex justify-center">
+            <LaundroPosLogo size="lg" />
           </div>
-          <h1 className="text-2xl font-bold text-white font-display">Wash Hub POS</h1>
-          <p className="text-slate-400 text-sm mt-1">Multi-Tenant Laundry Management</p>
+          <h1 className="text-2xl font-bold text-white font-display tracking-tight">
+            Laundro<span className="text-cyan-400">POS</span>
+          </h1>
+          <p className="text-slate-400 text-xs mt-1">Smart Laundry & Dry Cleaning Management System</p>
         </div>
         
         <div className="p-8">
@@ -106,7 +109,7 @@ export default function LoginView({ onLogin }: LoginViewProps) {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-900 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition"
-                    placeholder="superadmin@washhub.com"
+                    placeholder="admin@laundropos.com"
                   />
                 </div>
               </div>

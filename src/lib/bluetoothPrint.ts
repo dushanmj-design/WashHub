@@ -272,12 +272,12 @@ export function buildEscPosPayload(data: EscPosReceiptData, feedMm: number = 28)
 
   // Feed paper past printhead-to-cutter knife distance (clean feed)
   // Ensure generous paper feed (70-75mm) so neither text, table nor QR code is sliced by the knife
-  const linesToFeed = Math.max(18, Math.min(28, Math.ceil((feedMm || 75) / 3.8)));
-  writeText('\n\n\n\n\n\n\n\n');
+  const linesToFeed = Math.max(20, Math.min(32, Math.ceil((feedMm || 75) / 3.8)));
+  writeText('\n*** THANK YOU · COME AGAIN ***\n\n\n\n\n\n\n\n\n\n\n\n');
   // ESC d n (Print and feed n lines)
   chunks.push(0x1B, 0x64, linesToFeed);
-  // Feed paper to cutter knife and cut: GS V 'A' 24 (0x1D, 0x56, 0x41, 0x18)
-  chunks.push(0x1D, 0x56, 0x41, 0x18);
+  // Feed paper to cutter knife and cut: GS V 'A' 32 (0x1D, 0x56, 0x41, 0x20)
+  chunks.push(0x1D, 0x56, 0x41, 0x20);
 
   return new Uint8Array(chunks);
 }

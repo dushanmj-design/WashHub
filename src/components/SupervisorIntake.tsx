@@ -30,7 +30,7 @@ export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: S
   
   // Default with all services unselected - all billing amount fields are strictly frozen until selected on screen
   const [services, setServices] = useState({ wash: false, dry: false, iron: false, dc: false });
-  const [category, setCategory] = useState<string[]>(['Cloths']);
+  const [category, setCategory] = useState<string[]>(['Clothes']);
   const [formError, setFormError] = useState<string | null>(null);
 
   const toggleCategory = (cat: string) => {
@@ -139,7 +139,7 @@ export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: S
         {/* Header */}
         <header className="bg-slate-900 text-slate-100 p-4 sm:p-5 shrink-0">
           <div className="flex justify-between items-center mb-4">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-wide text-white">WashHub (Pvt) LTD.</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-wide text-white">LaundroPOS</h1>
             <div className="text-xs sm:text-sm font-semibold opacity-90 text-right">
               <div>TEL: 011-1234567</div>
             </div>
@@ -278,30 +278,30 @@ export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: S
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <button 
                 type="button" 
-                onClick={() => toggleCategory('Cloths')} 
+                onClick={() => toggleCategory('Clothes')} 
                 className={`p-2.5 rounded-xl border-2 text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  category.includes('Cloths') 
+                  category.includes('Clothes') 
                     ? 'bg-blue-600 border-blue-700 text-white shadow-md ring-2 ring-blue-400/30' 
                     : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
                 }`}
               >
                 <Shirt className="w-4 h-4 shrink-0" />
-                <span>Cloths</span>
-                {category.includes('Cloths') && <Check className="w-3.5 h-3.5 ml-auto stroke-[3]" />}
+                <span>Clothes</span>
+                {category.includes('Clothes') && <Check className="w-3.5 h-3.5 ml-auto stroke-[3]" />}
               </button>
               
               <button 
                 type="button" 
-                onClick={() => toggleCategory('Curtain')} 
+                onClick={() => toggleCategory('Curtains')} 
                 className={`p-2.5 rounded-xl border-2 text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  category.includes('Curtain') 
+                  category.includes('Curtains') 
                     ? 'bg-teal-600 border-teal-700 text-white shadow-md ring-2 ring-teal-400/30' 
                     : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
                 }`}
               >
                 <Blinds className="w-4 h-4 shrink-0" />
-                <span>Curtain</span>
-                {category.includes('Curtain') && <Check className="w-3.5 h-3.5 ml-auto stroke-[3]" />}
+                <span>Curtains</span>
+                {category.includes('Curtains') && <Check className="w-3.5 h-3.5 ml-auto stroke-[3]" />}
               </button>
 
               <button 
@@ -336,85 +336,137 @@ export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: S
 
           <hr className="border-slate-100" />
 
-          {/* Measurements */}
-          <section className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="w-20 text-lg font-bold text-slate-700">Weight</label>
-                <div className="relative flex-1">
-                  <input type="number" step="0.01" value={weight} onChange={e => setWeight(e.target.value)} className="block w-full rounded-md border border-slate-300 py-2 pl-4 pr-12 text-slate-900 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-lg font-semibold text-right" placeholder="0.00" />
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
-                    <span className="text-slate-500 sm:text-lg font-medium">kg</span>
+          {/* Measurements & Packaging - Fully Responsive Layout across Laptop, Tablet & Mobile */}
+          <section className="space-y-4">
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Specs & Packaging</h3>
+            
+            {/* Row 1: Weight & Quantity */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Weight */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">Weight</label>
+                <div className="relative">
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    value={weight} 
+                    onChange={e => setWeight(e.target.value)} 
+                    className="block w-full rounded-lg border border-slate-300 py-2.5 pl-4 pr-12 text-slate-900 shadow-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-base font-semibold text-right" 
+                    placeholder="0.00" 
+                  />
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3.5">
+                    <span className="text-slate-500 text-sm font-medium">kg</span>
                   </div>
                 </div>
               </div>
+
+              {/* Quantity */}
               <div>
-                <label className="block text-lg font-bold text-slate-700 mb-2">Delivery Date</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-sm font-bold text-slate-700">Quantity (Pieces)</label>
+                  <span className="text-[11px] text-slate-400 font-medium">(Iron / Dry clean)</span>
+                </div>
                 <div className="relative">
-                  <input required type="date" value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} className="block w-full rounded-md border-2 border-[#f97316] py-2 px-4 text-slate-900 shadow-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 sm:text-lg font-bold bg-[#fff7ed] cursor-pointer" />
+                  <input 
+                    type="number" 
+                    value={quantity} 
+                    onChange={e => setQuantity(e.target.value)} 
+                    className="block w-full rounded-lg border border-slate-300 py-2.5 px-4 text-slate-900 shadow-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-base text-center font-semibold" 
+                    placeholder="0" 
+                  />
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3.5">
+                    <span className="text-slate-500 text-sm font-medium">pcs</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="w-12 text-lg font-bold text-slate-700">Qty</label>
-                <input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} className="block w-32 rounded-md border border-slate-300 py-2 px-4 text-slate-900 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 sm:text-lg text-center font-semibold" placeholder="0" />
-                <span className="text-sm text-slate-500 font-bold whitespace-nowrap">(Iron/Dry clean)</span>
+            {/* Row 2: Delivery Date & Packaging Mode */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+              {/* Delivery Date */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">Delivery Date</label>
+                <div className="relative">
+                  <input 
+                    required 
+                    type="date" 
+                    value={deliveryDate} 
+                    onChange={e => setDeliveryDate(e.target.value)} 
+                    className="block w-full rounded-lg border-2 border-[#f97316] py-2 px-3 text-slate-900 shadow-xs focus:border-orange-500 focus:ring-1 focus:ring-orange-500 sm:text-sm font-bold bg-[#fff7ed] cursor-pointer" 
+                  />
+                </div>
               </div>
-              
-              {/* Packaging Mode (Fold vs Hanger) with picture icons */}
-              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                <button 
-                  type="button" 
-                  onClick={() => togglePackaging('fold')} 
-                  className={`p-3 rounded-lg border-2 flex items-center justify-between transition-all cursor-pointer ${
-                    packaging === 'fold'
-                      ? 'bg-pink-50 border-pink-400 text-pink-900 shadow-xs ring-2 ring-pink-300/30'
-                      : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className={`p-1.5 rounded-lg ${packaging === 'fold' ? 'bg-pink-200 text-pink-700' : 'bg-slate-100 text-slate-500'}`}>
-                      <Layers className="w-4 h-4" />
-                    </div>
-                    <div className="text-left">
-                      <div className="text-sm font-black">Fold</div>
-                      <div className="text-[10px] text-slate-500">Folded stack</div>
-                    </div>
-                  </div>
-                  <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${packaging === 'fold' ? 'border-pink-600 bg-pink-600' : 'border-slate-300'}`}>
-                    {packaging === 'fold' && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
-                  </div>
-                </button>
 
-                <button 
-                  type="button" 
-                  onClick={() => togglePackaging('hanger')} 
-                  className={`p-3 rounded-lg border-2 flex items-center justify-between transition-all cursor-pointer ${
-                    packaging === 'hanger'
-                      ? 'bg-blue-50 border-blue-400 text-blue-900 shadow-xs ring-2 ring-blue-300/30'
-                      : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className={`p-1.5 rounded-lg ${packaging === 'hanger' ? 'bg-blue-200 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
-                      <Tag className="w-4 h-4" />
+              {/* Packaging Mode (Fold vs Hanger) - Balanced for laptop screens */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-sm font-bold text-slate-700">Packaging Type</label>
+                  <span className="text-[11px] text-slate-400 font-medium">Optional selection</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+                  <button 
+                    type="button" 
+                    onClick={() => togglePackaging('fold')} 
+                    className={`h-11 px-2.5 rounded-lg border-2 flex items-center justify-between transition-all cursor-pointer min-w-0 ${
+                      packaging === 'fold'
+                        ? 'bg-pink-50 border-pink-400 text-pink-900 shadow-xs ring-2 ring-pink-300/30'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <div className={`p-1 rounded shrink-0 ${packaging === 'fold' ? 'bg-pink-200 text-pink-700' : 'bg-slate-100 text-slate-500'}`}>
+                        <Layers className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="text-left min-w-0">
+                        <div className="text-xs font-black truncate">Fold</div>
+                      </div>
                     </div>
-                    <div className="text-left">
-                      <div className="text-sm font-black">Hanger</div>
-                      <div className="text-[10px] text-slate-500">On hanger</div>
+                    <div className={`h-3.5 w-3.5 rounded-full border-2 shrink-0 ml-1 flex items-center justify-center ${packaging === 'fold' ? 'border-pink-600 bg-pink-600' : 'border-slate-300'}`}>
+                      {packaging === 'fold' && <Check className="w-2 h-2 text-white stroke-[3]" />}
+                    </div>
+                  </button>
+
+                  <button 
+                    type="button" 
+                    onClick={() => togglePackaging('hanger')} 
+                    className={`h-11 px-2.5 rounded-lg border-2 flex items-center justify-between transition-all cursor-pointer min-w-0 ${
+                      packaging === 'hanger'
+                        ? 'bg-blue-50 border-blue-400 text-blue-900 shadow-xs ring-2 ring-blue-300/30'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <div className={`p-1 rounded shrink-0 ${packaging === 'hanger' ? 'bg-blue-200 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
+                        <Tag className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="text-left min-w-0">
+                        <div className="text-xs font-black truncate">Hanger</div>
+                      </div>
+                    </div>
+                    <div className={`h-3.5 w-3.5 rounded-full border-2 shrink-0 ml-1 flex items-center justify-center ${packaging === 'hanger' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'}`}>
+                      {packaging === 'hanger' && <Check className="w-2 h-2 text-white stroke-[3]" />}
+                    </div>
+                  </button>
+                </div>
+
+                {/* Hanger Quantity Input - Appears seamlessly when Hanger is selected */}
+                {packaging === 'hanger' && (
+                  <div className="mt-2 flex items-center justify-between bg-amber-50/80 border border-amber-200 rounded-lg p-2 animate-fade-in">
+                    <label className="text-xs font-bold text-amber-900">Hangers Given:</label>
+                    <div className="flex items-center gap-1">
+                      <input 
+                        type="number" 
+                        min="0"
+                        value={hangerQty} 
+                        onChange={e => setHangerQty(e.target.value)} 
+                        className="w-16 rounded border border-amber-300 py-1 px-2 text-slate-900 sm:text-xs text-center font-bold bg-white shadow-xs focus:ring-1 focus:ring-amber-500 outline-none" 
+                        placeholder="0" 
+                      />
+                      <span className="text-[11px] text-amber-800 font-bold">pcs</span>
                     </div>
                   </div>
-                  <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${packaging === 'hanger' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'}`}>
-                    {packaging === 'hanger' && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
-                  </div>
-                </button>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <label className="text-lg font-bold text-slate-700">Hanger Given Qty</label>
-                <input type="number" disabled={packaging !== 'hanger'} value={hangerQty} onChange={e => setHangerQty(e.target.value)} className="block w-24 rounded-md border-2 border-[#fcd34d] py-2 px-3 text-slate-900 shadow-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 sm:text-lg text-center font-bold bg-[#fef3c7] disabled:opacity-50" placeholder="0" />
+                )}
               </div>
             </div>
           </section>
@@ -438,11 +490,11 @@ export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: S
         )}
         
         <div className="space-y-3 text-base mb-4">
-          {/* Wash Amount */}
+          {/* Wash */}
           <div className="flex justify-between items-center">
             <span className={`font-bold flex items-center gap-1.5 ${services.wash ? 'text-slate-800' : 'text-slate-400'}`}>
               <Waves className="w-4 h-4 text-amber-500" />
-              <span>Wash Amount</span>
+              <span>Wash</span>
             </span>
             <div className="flex items-center w-40 justify-end">
               <span className="text-slate-400 mr-2.5 font-medium text-sm">Rs.</span>
@@ -467,11 +519,11 @@ export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: S
             </div>
           </div>
 
-          {/* Dry Amount */}
+          {/* Dry */}
           <div className="flex justify-between items-center">
             <span className={`font-bold flex items-center gap-1.5 ${services.dry ? 'text-slate-800' : 'text-slate-400'}`}>
               <Wind className="w-4 h-4 text-emerald-500" />
-              <span>Dry Amount</span>
+              <span>Dry</span>
             </span>
             <div className="flex items-center w-40 justify-end">
               <span className="text-slate-400 mr-2.5 font-medium text-sm">Rs.</span>
@@ -496,11 +548,11 @@ export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: S
             </div>
           </div>
 
-          {/* Iron Amount */}
+          {/* Iron */}
           <div className="flex justify-between items-center">
             <span className={`font-bold flex items-center gap-1.5 ${services.iron ? 'text-slate-800' : 'text-slate-400'}`}>
               <Flame className="w-4 h-4 text-blue-500" />
-              <span>Iron Amount</span>
+              <span>Iron</span>
             </span>
             <div className="flex items-center w-40 justify-end">
               <span className="text-slate-400 mr-2.5 font-medium text-sm">Rs.</span>
@@ -525,11 +577,11 @@ export default function SupervisorIntake({ onSubmit, isLoading, orders = [] }: S
             </div>
           </div>
 
-          {/* D/C Amount */}
+          {/* D/C */}
           <div className="flex justify-between items-center">
             <span className={`font-bold flex items-center gap-1.5 ${services.dc ? 'text-slate-800' : 'text-slate-400'}`}>
               <ShieldCheck className="w-4 h-4 text-pink-500" />
-              <span>D/C Amount</span>
+              <span>D/C</span>
             </span>
             <div className="flex items-center w-40 justify-end">
               <span className="text-slate-400 mr-2.5 font-medium text-sm">Rs.</span>

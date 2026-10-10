@@ -12,16 +12,38 @@ interface BarcodeScannerProps {
 export default function BarcodeScanner({ orders, onScanBarcode, isLoading }: BarcodeScannerProps) {
   const [showSmsModal, setShowSmsModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [queueFilter, setQueueFilter] = useState<'active' | 'ready' | 'all'>('active');
   const recordsPerPage = 10;
 
-  // Filter orders by active status, sorted latest order first
-  const activeOrders = orders
-    .filter((o) => o.status !== 'delivered' && o.status !== 'completed')
-    .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+  const getOrderTimestamp = (o: Order): number => {
+    if (!o) return 0;
+    if (o.created_at) {
+      const t = new Date(o.created_at).getTime();
+      if (!isNaN(t) && t > 0) return t;
+    }
+    if ((o as any).in_date) {
+      const t = new Date((o as any).in_date).getTime();
+      if (!isNaN(t) && t > 0) return t;
+    }
+    if (o.id && typeof o.id === 'string' && o.id.startsWith('o-')) {
+      const num = parseInt(o.id.replace('o-', ''), 10);
+      if (!isNaN(num)) return num;
+    }
+    return 0;
+  };
+
+  // Filter orders by selected view, strictly sorted with latest order first at the top
+  const displayedOrders = orders
+    .filter((o) => {
+      if (queueFilter === 'active') return o.status !== 'delivered' && o.status !== 'completed';
+      if (queueFilter === 'ready') return o.status === 'completed';
+      return o.status !== 'delivered';
+    })
+    .sort((a, b) => getOrderTimestamp(b) - getOrderTimestamp(a));
 
   // Pagination logic
-  const totalPages = Math.ceil(activeOrders.length / recordsPerPage);
-  const paginatedOrders = activeOrders.slice((currentPage - 1) * recordsPerPage, currentPage * recordsPerPage);
+  const totalPages = Math.ceil(displayedOrders.length / recordsPerPage);
+  const paginatedOrders = displayedOrders.slice((currentPage - 1) * recordsPerPage, currentPage * recordsPerPage);
 
   // Workflow visual configurations
   const workflowStages: Record<string, string[]> = {
@@ -68,11 +90,48 @@ export default function BarcodeScanner({ orders, onScanBarcode, isLoading }: Bar
 
       {/* Orders queue & instant-scan action */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between pb-1">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Queue ({activeOrders.length})</span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              {queueFilter === 'active' ? 'Active Queue' : queueFilter === 'ready' ? 'Ready for Pickup' : 'Orders'} ({displayedOrders.length})
+            </span>
+            <span className="text-[10px] font-bold text-cyan-800 bg-cyan-50 border border-cyan-200 px-2 py-0.5 rounded-full">
+              Latest first
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+            <button
+              type="button"
+              onClick={() => { setQueueFilter('active'); setCurrentPage(1); }}
+              className={`px-2.5 py-1 rounded-md font-semibold transition cursor-pointer ${
+                queueFilter === 'active' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Active Queue
+            </button>
+            <button
+              type="button"
+              onClick={() => { setQueueFilter('ready'); setCurrentPage(1); }}
+              className={`px-2.5 py-1 rounded-md font-semibold transition cursor-pointer ${
+                queueFilter === 'ready' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Ready (Scanned)
+            </button>
+            <button
+              type="button"
+              onClick={() => { setQueueFilter('all'); setCurrentPage(1); }}
+              className={`px-2.5 py-1 rounded-md font-semibold transition cursor-pointer ${
+                queueFilter === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              All
+            </button>
+          </div>
         </div>
 
-        {activeOrders.length === 0 ? (
+        {displayedOrders.length === 0 ? (
           <div className="py-12 text-center text-slate-400 border border-dashed border-slate-200 rounded-xl text-sm" id="empty-queue-alert">
             ⚡ All laundry baskets are checked-out or no active matches found.
           </div>
@@ -96,7 +155,7 @@ export default function BarcodeScanner({ orders, onScanBarcode, isLoading }: Bar
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
-                          {order.barcode_id}
+                          {order.barcode_id ? order.barcode_id.replace(/^WB-?/i, '') : order.id}
                         </span>
                         <span className="text-xs font-semibold text-slate-400 font-mono">
                           {order.workflow === 'wash_dry_iron' ? 'Wash > Dry > Iron' : 'Wash > Dry'}
@@ -189,7 +248,7 @@ export default function BarcodeScanner({ orders, onScanBarcode, isLoading }: Bar
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-4">
             <span className="text-xs text-slate-500 font-medium">
-              Showing {(currentPage - 1) * recordsPerPage + 1} to {Math.min(currentPage * recordsPerPage, activeOrders.length)} of {activeOrders.length} records
+              Showing {(currentPage - 1) * recordsPerPage + 1} to {Math.min(currentPage * recordsPerPage, displayedOrders.length)} of {displayedOrders.length} records
             </span>
             <div className="flex gap-1">
               <button
