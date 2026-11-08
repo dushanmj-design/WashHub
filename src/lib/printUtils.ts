@@ -39,7 +39,8 @@ export function printHtml(htmlContent: string, title: string) {
             print-color-adjust: exact !important;
           }
           @page { 
-            margin: 0mm !important;
+            margin: 0 !important;
+            size: 80mm auto !important;
           }
           html, body { 
             background: #ffffff !important; 
@@ -54,13 +55,14 @@ export function printHtml(htmlContent: string, title: string) {
           }
           @media print {
             @page {
-              margin: 0mm !important;
+              margin: 0 !important;
+              size: 80mm auto !important;
             }
             html, body {
-              width: 72mm !important;
-              max-width: 72mm !important;
-              min-width: 72mm !important;
-              margin: 0 auto !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              min-width: 100% !important;
+              margin: 0 !important;
               padding: 0 !important;
               color: #000000 !important;
               background: #ffffff !important;
@@ -70,9 +72,9 @@ export function printHtml(htmlContent: string, title: string) {
               overflow: visible !important;
             }
             .receipt-page { 
-              width: 72mm !important;
-              min-width: 72mm !important;
-              max-width: 72mm !important;
+              width: 100% !important;
+              min-width: 100% !important;
+              max-width: 100% !important;
               padding: 0 !important;
               margin: 0 auto !important;
               page-break-inside: avoid !important;
@@ -94,11 +96,11 @@ export function printHtml(htmlContent: string, title: string) {
               padding-top: 1mm !important;
             }
             .receipt-content-wrapper { 
-              width: 72mm !important;
-              min-width: 72mm !important;
-              max-width: 72mm !important;
+              width: 100% !important;
+              min-width: 100% !important;
+              max-width: 100% !important;
               margin: 0 auto !important;
-              padding: 1mm 0.5mm 0 0.5mm !important;
+              padding: 1.5mm 1.5mm 0 1.5mm !important;
               box-sizing: border-box !important;
               page-break-inside: avoid !important;
               break-inside: avoid !important;
